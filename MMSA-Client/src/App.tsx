@@ -1,14 +1,18 @@
+import { FC } from 'react';
 import './App.css';
-import { MainPage } from './pages/MainPage';
+import { MainPage } from './Pages/MainPage';
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { InfoPage } from './Pages/InfoPage/InfoPage';
 
-function App () {
+const App: FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" Component={MainPage} />
+        <Route path="/" element={<MainPage/>}/>
+        <Route path="/:page" element={<InfoPage/>}/>
+        <Route path="/:page/:subPage" element={<InfoPage/>}/>        
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
   );
 }
 

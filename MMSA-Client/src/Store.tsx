@@ -1,71 +1,43 @@
 import { Action, createHook, createStore } from "react-sweet-state";
+import { Page } from "./models/Page";
 
 type State = {
-    tableValues: number[][],
-    graphXis: any,
-    functionValues: number[][][],
-    dataTable: any[],
-    columns: any[]
-    calculationError: boolean
+  page: string;
+  subPage: string;
+  selectedMenuItem: string;
+  // pageFullInfo: Page;
 };
 
 const initialState: State = {
-    tableValues: [[]],
-    graphXis: [],
-    functionValues: [[[]]],
-    dataTable: [],
-    columns: [],
-    calculationError: false
+  page: "",
+  subPage: "",
+  selectedMenuItem: "",
 };
 
 const actions = {
-  setTableValues:
-    (tableValue: [[]]): Action<State> =>
+  setPage:
+    (newPage: string): Action<State> =>
     ({ setState }) => {
       setState({
-        tableValues: tableValue
+        page: newPage,
       });
     },
 
-  setTableColumns:
-    (newColumns: any[]): Action<State> =>
+  setSubPage:
+    (newSubPage: string): Action<State> =>
     ({ setState }) => {
       setState({
-        columns: newColumns
-      });
-    },
-    
-  setGraphXis:
-    (graphXi: []): Action<State> =>
-    ({ setState }) => {
-      setState({
-        graphXis: graphXi
+        subPage: newSubPage,
       });
     },
 
-  setFunctionValues:
-    (functionValue: [[[]]]): Action<State> =>
+  setSelectedMenuItem:
+    (selectedMenuItem: string): Action<State> =>
     ({ setState }) => {
       setState({
-        functionValues: functionValue
+        selectedMenuItem: selectedMenuItem
       });
     },
-  
-  setDataTable:
-    (newData: any[]): Action<State> =>
-    ({ setState }) => {
-      setState({
-        dataTable: newData
-      });
-    },
-
-  setCalculationError:
-    (isError: boolean): Action<State> =>
-    ({ setState }) => {
-      setState({
-        calculationError: isError
-      });
-    }
 };
 
 const Store = createStore({ initialState, actions });
