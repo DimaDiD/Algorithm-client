@@ -1,22 +1,30 @@
 import { Action, createHook, createStore } from "react-sweet-state";
 import { Page } from "./models/Page";
+import { SubPage } from "./models/SubPages";
 
 type State = {
-  page: string;
-  subPage: string;
+  page: Page;
+  subPage?: SubPage;
   selectedMenuItem: string;
-  // pageFullInfo: Page;
 };
 
 const initialState: State = {
-  page: "",
-  subPage: "",
+  page: {
+    Id: 0,
+    PageName: "",
+    SubPages: []
+  },
+  subPage: {
+    Id: 0,
+    PageId: 0,
+    Name:""
+  },
   selectedMenuItem: "",
 };
 
 const actions = {
   setPage:
-    (newPage: string): Action<State> =>
+    (newPage: Page): Action<State> =>
     ({ setState }) => {
       setState({
         page: newPage,
@@ -24,7 +32,7 @@ const actions = {
     },
 
   setSubPage:
-    (newSubPage: string): Action<State> =>
+    (newSubPage?: SubPage): Action<State> =>
     ({ setState }) => {
       setState({
         subPage: newSubPage,

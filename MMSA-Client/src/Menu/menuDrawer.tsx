@@ -17,12 +17,14 @@ function getItem(
   key: React.Key ,
   icon?: React.ReactNode,
   children?: MenuItem[],
+  onContextMenu?: (event: React.MouseEvent) => void
 ): MenuItem {
   return {
     key,
     icon,
     children,
     label,
+    onContextMenu
   } as MenuItem;
 }
 
@@ -32,11 +34,14 @@ const MenuDrawer = () => {
   const navigate = useNavigate();
 
   const [items, setMenuItems] = useState<MenuItem[]>([]);
+  const [fullInfoItems, setFullInfoItems] = useState<Page[]>([]);
+
   const [newSubMenuItemName, setNewSubMenuItemName] = useState('');
   const [newMenuItemName, setNewMenuItemName] = useState('');
   const [parentItem, setParentItem] = useState(null);
   const [isSubMenuItemModalVisible, setIsSubMenuItemModalVisible] = useState(false);
-  const [isMenuItemModalVisible, setIsMenuItemModalVisible] = useState(false);
+  const [isMenuItemModalVisible, setIsMenuItemModalVisible] = useState(false);  
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   useEffect(() => {  
     getMenuItems();    
@@ -44,41 +49,39 @@ const MenuDrawer = () => {
 
   const getMenuItems = async () => {
     await api.getMenuItems().then((res) => {
+      
+      setFullInfoItems(res);
+
       let menuItems = res.map((menuItem:Page) => {      
+        const handleRightClick = (event: any) => onRightClickMenuItem(event, menuItem.PageName);
         if(menuItem.SubPages.length == 0){
-          return getItem(menuItem.PageName, menuItem.PageName, null)
+          return getItem(menuItem.PageName, menuItem.PageName, null, undefined, handleRightClick)
         }
         else{  
           return getItem(menuItem.PageName, menuItem.PageName, null, menuItem.SubPages.map((subMenu: SubPage) => {
-            return getItem(subMenu.Name, subMenu.Name, null)
-          }))
+            return getItem(subMenu.Name, subMenu.Name, null, undefined, (event) => onRightClickMenuItem(event, subMenu.Name))
+          }), handleRightClick)
         }
       }) 
 
       setMenuItems(menuItems)
-
       actions.setSelectedMenuItem(menuItems[0]);
-
-      console.log(state.selectedMenuItem)
     })
   }
 
-   const onClick = (menuOption: any) => {
-    
+   const onClick = (menuOption: any) => {   
     menuOption.keyPath = menuOption.keyPath.reverse();    
 
     actions.setSelectedMenuItem(menuOption.key);
-
-    setIsEditModalVisible(true);
-
-    actions.setPage(menuOption.keyPath[0])
+    actions.setPage(fullInfoItems.filter(x => x.PageName == menuOption.keyPath[0])[0])
 
     if(menuOption.keyPath.length == 2){
-      actions.setSubPage(menuOption.keyPath[1])
+      
+      actions.setSubPage(state.page.SubPages.filter(x => x.Name == menuOption.keyPath[1])[0])
       navigate(`/${menuOption.keyPath[0]}/${menuOption.keyPath[1]}`);
     }
     else{
-      actions.setSubPage("")
+      actions.setSubPage(undefined)
       if ("Головна" === menuOption.keyPath[0]) {
         navigate(`/`);
       }
@@ -93,6 +96,7 @@ const MenuDrawer = () => {
 }
 
 const addSubMenuItem = async () => {
+  setIsEditModalVisible(false);
   const newItem: ItemType = { key: newSubMenuItemName, label: newSubMenuItemName };
 
   if (parentItem) {
@@ -120,6 +124,7 @@ const addSubMenuItem = async () => {
 };
 
   const showModal = (isItemMenu: boolean) => {
+    setIsEditModalVisible(false);
     if(isItemMenu){
       setIsMenuItemModalVisible(true);      
     }
@@ -130,6 +135,7 @@ const addSubMenuItem = async () => {
   };
 
   const handleCancel = (isItemMenu: boolean) => {
+    setIsEditModalVisible(true);
     if(isItemMenu){
       setIsMenuItemModalVisible(false);
     }
@@ -147,6 +153,7 @@ const addSubMenuItem = async () => {
   };
 
   const addMenuItem = async () => {
+    setIsEditModalVisible(false);
     setMenuItems(prevItems => [...prevItems, getItem(newMenuItemName, newMenuItemName)]);
     await api.CreatePage(newMenuItemName).then(() => {
       setIsMenuItemModalVisible(false);
@@ -159,14 +166,10 @@ const addSubMenuItem = async () => {
     setNewMenuItemName(e.target.value);
   };
 
-
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-
   const handleEditMenuItem = async () => {
     if (state.selectedMenuItem) {
-      console.log(state.selectedMenuItem, newMenuItemName)
-      //await api.UpdatePage(selectedMenuItem, newMenuItemName); // Assume UpdatePage API exists
-      getMenuItems(); // Refresh the menu items
+      await api.UpdateMenuItem(state.selectedMenuItem, newMenuItemName);
+      getMenuItems(); 
       setIsEditModalVisible(false);
       setNewMenuItemName('');
     }
@@ -174,13 +177,18 @@ const addSubMenuItem = async () => {
   
   const handleDeleteMenuItem = async () => {
     if (state.selectedMenuItem) {
-      console.log(state.selectedMenuItem, newMenuItemName)
-      //await api.DeletePage(selectedMenuItem); // Assume DeletePage API exists
-      getMenuItems(); // Refresh the menu items
+      await api.DeleteMenuItem(state.selectedMenuItem);  
+      getMenuItems();
       setIsEditModalVisible(false);
     }
   };
   
+  const onRightClickMenuItem = (event:any, key: any) => {
+    event.preventDefault();
+    event.stopPropagation(); 
+    actions.setSelectedMenuItem(key); 
+    setIsEditModalVisible(true);
+  };
 
   return (
     <>
@@ -193,16 +201,9 @@ const addSubMenuItem = async () => {
         items={items}
         onClick={onClick}
       /> 
-      <Button type="primary" onClick={() => showModal(true)} style={{ marginTop: '10px' }}>
-        Add Menu Item
-      </Button>
       <Modal title="Add New Menu Item" open={isMenuItemModalVisible} onOk={addMenuItem} onCancel={() => handleCancel(true)}>
         <Input placeholder="Enter menu item name" value={newMenuItemName} onChange={onChangeNewMenuItemName} />
       </Modal>
-
-      <Button type="primary" onClick={() => showModal(false)} style={{ marginTop: '10px' }}>
-        Add SubMenu Item
-      </Button>
       <Modal title="Add New Menu Item" open={isSubMenuItemModalVisible} onOk={addSubMenuItem} onCancel={() => handleCancel(false)}>
         <Input placeholder="Enter menu item name" value={newSubMenuItemName} onChange={onChangeNewSubMenuItemName} />
         <Select
@@ -217,7 +218,7 @@ const addSubMenuItem = async () => {
       </Modal>   
 
       <Modal
-  title="Edit or Delete Menu Item"
+  title="Options"
   open={isEditModalVisible}
   onCancel={() => setIsEditModalVisible(false)}
   footer={[
@@ -226,10 +227,16 @@ const addSubMenuItem = async () => {
     </Button>,
     <Button key="save" type="primary" onClick={handleEditMenuItem}>
       Save Changes
+    </Button>,
+    <Button type="primary" onClick={() => showModal(false)}>
+      Add SubItem
+    </Button>,
+    <Button type="primary" onClick={() => showModal(true)}>
+        Add Item
     </Button>
   ]}
 >
-  <Input placeholder="Edit menu item name" value={newMenuItemName} onChange={(e) => setNewMenuItemName(e.target.value)} />
+  <Input placeholder="Edit menu item name" defaultValue = {state.selectedMenuItem} value={newMenuItemName} onChange={(e) => setNewMenuItemName(e.target.value)} />
 </Modal>   
       </div>
     </>
