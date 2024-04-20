@@ -35,7 +35,11 @@ export default class MainService {
     return (await Api.post(`PageContent/CreatePageContent`, pageContent))
   };
 
-  DeletePageContent = async (pageContent: PageContent) => {
-    return (await Api.remove(`PageContent/DeletePageContent`, pageContent))
+  DeletePageContent = async (pageContentId: number) => {
+    return (await Api.remove(`PageContent/DeletePageContent?pageContentId=${pageContentId}`))
+  };
+
+  UpdatePageContent = async (pageContent: PageContent) => {
+    return (await Api.put(`PageContent/UpdatePageContent`, pageContent))
   };
 }

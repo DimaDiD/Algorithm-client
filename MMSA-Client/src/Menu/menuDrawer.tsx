@@ -73,10 +73,10 @@ const MenuDrawer = () => {
     menuOption.keyPath = menuOption.keyPath.reverse();    
 
     actions.setSelectedMenuItem(menuOption.key);
-    actions.setPage(fullInfoItems.filter(x => x.PageName == menuOption.keyPath[0])[0])
-
+    let page = fullInfoItems.filter(x => x.PageName == menuOption.keyPath[0])[0];
+    actions.setPage(page)
+    
     if(menuOption.keyPath.length == 2){
-      
       actions.setSubPage(state.page.SubPages.filter(x => x.Name == menuOption.keyPath[1])[0])
       navigate(`/${menuOption.keyPath[0]}/${menuOption.keyPath[1]}`);
     }
