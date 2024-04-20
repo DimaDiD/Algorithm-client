@@ -10,39 +10,42 @@ export const InfoPageFilling = () => {
     const [form] = Form.useForm();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [contentType, setContentType] = useState('');
-
+    const [insertPosition, setInsertPosition] = useState<number | null>(null);
     const [pageContent, setPageContent] = useState<PageContent[]>([]);
 
     useEffect(() => {         
         getPageContent();
     }, [state.page, state.subPage])
 
-    const getPageContent =  async () => {
-        console.log(state.page.Id, state.subPage?.Id)
-        await api.GetPageContentByMenuStatus(state.page.Id, state.subPage?.Id).then((data) => {
-            setPageContent(data);
-        });
+    const getPageContent = async () => {
+        await api.GetPageContentByMenuStatus(state.page.Id, state.subPage?.Id).then(setPageContent);
     }
 
-    const showModal = () => {
+    const showModal = (index: number | null) => {
         setIsModalVisible(true);
+        setInsertPosition(index); // Setting position to add content before or after
     };
 
-    const handleAddContent = async (values:any) => {
+    const handleAddContent = async (values: any) => {
         const newContent = {
-            Id: 0, // Typically set by the backend upon creation
+            Id: 0,
             Text: values.text,
             SubPageId: state.subPage?.Id,
             TextType: values.type,
             CodeType: values.type === 'code' ? values.codeType : 'none',
-            ContentLocation: pageContent.length > 0 ? pageContent[pageContent.length - 1].ContentLocation + 1 : 1,
+            ContentLocation: insertPosition !== null ? insertPosition + 1 : pageContent.length + 1,
             PageId: state.page.Id
         };
 
         api.CreatePageContent(newContent).then(() => {
-            setPageContent([...pageContent, newContent]);
+            const updatedContent = [
+                ...pageContent.slice(0, insertPosition !== null ? insertPosition + 1 : pageContent.length),
+                newContent,
+                ...pageContent.slice(insertPosition !== null ? insertPosition + 1 : pageContent.length)
+            ];
+            setPageContent(updatedContent);
             setIsModalVisible(false);
-            form.resetFields();  // Reset form fields after submission
+            form.resetFields();
         });
     };
 
@@ -52,53 +55,57 @@ export const InfoPageFilling = () => {
     };
 
     const handleDelete = (index: number) => {
-        let item = pageContent.filter((_, i) => i == index)[0];
+        const item = pageContent[index];
         api.DeletePageContent(item).then(() => {
-            const newPageContent = pageContent.filter(x => x !== item);        
-            setPageContent(newPageContent);
-        })
+            const updatedContent = pageContent.filter((_, i) => i !== index);
+            setPageContent(updatedContent);
+        });
     };
 
     return (
         <>
+            <Button type="dashed" onClick={() => showModal(-1)}>Add Content at Start</Button>
             {pageContent.map((content, index) => (
-                <div key={content.Id}>
+                <div key={content.Id} onMouseEnter={() => setInsertPosition(index)}>
+                    {index === insertPosition && (
+                        <Button type="dashed" onClick={() => showModal(index)}>Add Content Below</Button>
+                    )}
                     <p>{content.Text}</p>
-                    <Button danger onClick={() => handleDelete(index)}>Delete</Button>
+                    {/* <Button danger onClick={() => handleDelete(index)}>Delete</Button> */}
                 </div>
             ))}
-            <Button type="primary" onClick={showModal}>Add Content</Button>
-            <Modal title="Add New Content" visible={isModalVisible} onCancel={handleCancel} footer={null}>
-                <Form onFinish={handleAddContent}>
-                    <Form.Item name="type" label="Content Type" rules={[{ required: true }]}>
-                        <Select placeholder="Select a content type" onChange={setContentType}>
-                            <Select.Option value="text">Text</Select.Option>
-                            <Select.Option value="code">Code</Select.Option>
-                        </Select>
-                    </Form.Item>
-                    {contentType === 'code' && (
-                        <Form.Item name="codeType" label="Code Language" rules={[{ required: true }]}>
-                            <Select placeholder="Select a programming language">
-                                <Select.Option value="C#">C#</Select.Option>
-                                <Select.Option value="Python">Python</Select.Option>
-                                <Select.Option value="C++">C++</Select.Option>
+            <Button type="dashed" onClick={() => showModal(pageContent.length - 1)}>Add Content at End</Button>
+            {isModalVisible && (
+                <Modal title="Add New Content" visible={isModalVisible} onCancel={handleCancel} footer={null}>
+                    <Form onFinish={handleAddContent}>
+                        <Form.Item name="type" label="Content Type" rules={[{ required: true }]}>
+                            <Select placeholder="Select a content type" onChange={setContentType}>
+                                <Select.Option value="text">Text</Select.Option>
+                                <Select.Option value="code">Code</Select.Option>
                             </Select>
                         </Form.Item>
-                    )}
-                    <Form.Item name="text" label="Text" rules={[{ required: true }]}>
-                        <Input.TextArea />
-                    </Form.Item>
-                    <Form.Item>
-                        <Button type="primary" htmlType="submit">
-                            Add
-                        </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
+                        {contentType === 'code' && (
+                            <Form.Item name="codeType" label="Code Language" rules={[{ required: true }]}>
+                                <Select placeholder="Select a programming language">
+                                    <Select.Option value="C#">C#</Select.Option>
+                                    <Select.Option value="Python">Python</Select.Option>
+                                    <Select.Option value="C++">C++</Select.Option>
+                                </Select>
+                            </Form.Item>
+                        )}
+                        <Form.Item name="text" label="Text" rules={[{ required: true }]}>
+                            <Input.TextArea />
+                        </Form.Item>
+                        <Form.Item>
+                            <Button type="primary" htmlType="submit">
+                                Add
+                            </Button>
+                        </Form.Item>
+                    </Form>
+                </Modal>
+            )}
         </>
     );
 }
 
 export default InfoPageFilling;
-
-//додати можливість додавати новий текст між наявними блоками тексиу, зробити едіт і дорробити делет 
