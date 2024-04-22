@@ -6,6 +6,7 @@ type State = {
   page: Page;
   subPage?: SubPage;
   selectedMenuItem: string;
+  codeOption: string
 };
 
 const initialState: State = {
@@ -20,6 +21,7 @@ const initialState: State = {
     Name:""
   },
   selectedMenuItem: "",
+  codeOption: "cpp"
 };
 
 const actions = {
@@ -44,6 +46,14 @@ const actions = {
     ({ setState }) => {
       setState({
         selectedMenuItem: selectedMenuItem
+      });
+    },
+
+  setCodeOption:
+    (selectedCodeOption: string): Action<State> =>
+    ({ setState }) => {
+      setState({
+        codeOption: selectedCodeOption
       });
     },
 };

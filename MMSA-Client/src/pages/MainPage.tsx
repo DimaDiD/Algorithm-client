@@ -16,7 +16,7 @@ export const MainPage = () => {
       <Layout style={{height: "100%"}}>
         
           <Header className='header'>  
-            <div style={{height: "100%", justifyContent: "center"}}>АЛГОРИТМ ЦЕ ЛЕГКО!</div>
+            <div style={{height: "100%", justifyContent: "center"}}>Методи розробки алгоритмів</div>
           </Header> 
             <div style={{display:'flex', flexDirection:"row"}}>
               <MenuDrawer/>  

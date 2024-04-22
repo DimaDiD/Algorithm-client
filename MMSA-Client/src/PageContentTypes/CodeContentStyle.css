@@ -1,0 +1,22 @@
+.code-block{
+      background: #272822;
+      border-radius: 15px;
+      box-shadow: -5px 5px 15px rgba(0, 0, 0, 0.5);
+      padding: 3px;
+      color: #f8f8f2;
+      font-size: 16px;
+      font-family: "Fira Code", "Consolas", monospace;
+      overflow-x: auto ;
+      margin: 10px 30px 10px 30px;
+}
+
+
+
+
+/* li.ant-menu-item.ant-menu-item-only-child {
+      border-radius: 30px;
+  }
+
+  element.style {
+      background: rgba(85, 190, 241, 1);
+  } */

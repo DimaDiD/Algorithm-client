@@ -9,17 +9,18 @@ export const InfoPage = () => {
     let Api = new MainService();
     const [state, actions] = useTable();
     const [form] = Form.useForm();
-
+    // rgba(0, 173, 255, 1)
+    // rgba(85, 190, 241, 1)
     return (   
-      <Layout>
+      <Layout style={{background:"rgba(85, 190, 241, 1)"}}>
         <Header className='header'>  
-          <div style={{height: "100%", justifyContent: "center"}}>АЛГОРИТМ ЦЕ ЛЕГКО!</div>
+          <div style={{height: "100%", justifyContent: "center"}}>Методи розробки алгоритмів</div>
         </Header> 
 
         <div style={{display:'flex', flexDirection:"row"}}>
               <MenuDrawer/>  
               <div style={{width:"100%"}}>
-                <Content style={{background: "white", display: "flex", justifyContent:"center", flexDirection:"column"}}>
+                <Content style={{background: "white", display: "flex", justifyContent:"center", flexDirection:"column", backgroundColor:"white", borderRadius: "30px", margin:"10px 20px 10px 20px"}}>
                   <InfoPageFillng></InfoPageFillng>
                 </Content>
               </div>                                       

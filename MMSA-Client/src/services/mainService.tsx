@@ -22,8 +22,8 @@ export default class MainService {
     return (await Api.remove(`SubPage/DeleteMenuItem?title=${title}`))
   };
 
-  GetPageContentByMenuStatus = async (pageId: number, subPageId?: number) => {
-    let path = `PageContent/GetPageContentByMenuStatus?pageId=${pageId}`;
+  GetPageContentByMenuStatus = async (pageId: number, codeStatus: string, subPageId?: number) => {
+    let path = `PageContent/GetPageContentByMenuStatus?pageId=${pageId}&codeStatus=${codeStatus}`;
     if(subPageId != undefined){
       path += `&subPageId=${subPageId}`
     }

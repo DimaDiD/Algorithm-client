@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useTable } from "../Store";
 import { useEffect, useState } from "react";
-import { Button, Drawer, Input, Menu, MenuProps, Modal, Select, Switch, theme } from "antd";
+import { Button, Drawer, Input, Menu, MenuProps, Modal, Select, Switch, Tooltip, theme } from "antd";
 import MainService from "../services/mainService";
 import { Page } from "../models/Page";
 import "../Menu/menu.css";
@@ -11,6 +11,13 @@ import { ItemType, MenuItemGroupType, MenuItemType, SubMenuType } from "antd/es/
 const { Option } = Select;
 
 type MenuItem = Required<MenuProps>['items'][number];
+
+const truncateText = (text: any, maxLength: any) => {
+  if (text.length > maxLength) {
+    return `${text.substring(0, maxLength)}...`;
+  }
+  return text;
+};
 
 function getItem(
   label: React.ReactNode,
@@ -23,7 +30,11 @@ function getItem(
     key,
     icon,
     children,
-    label,
+    label: (
+      <Tooltip title={label}>
+        {truncateText(label, 20)}
+      </Tooltip>
+    ),
     onContextMenu
   } as MenuItem;
 }
@@ -77,17 +88,18 @@ const MenuDrawer = () => {
     actions.setPage(page)
     
     if(menuOption.keyPath.length == 2){
-      actions.setSubPage(state.page.SubPages.filter(x => x.Name == menuOption.keyPath[1])[0])
+      actions.setSubPage(page.SubPages.filter(x => x.Name == menuOption.keyPath[1])[0])
       navigate(`/${menuOption.keyPath[0]}/${menuOption.keyPath[1]}`);
     }
     else{
       actions.setSubPage(undefined)
-      if ("Головна" === menuOption.keyPath[0]) {
-        navigate(`/`);
-      }
-      else{
-        navigate(`/${menuOption.keyPath[0]}`);
-      }
+      navigate(`/${menuOption.keyPath[0]}`);
+      // if ("Головна" === menuOption.keyPath[0]) {
+      //   navigate(`/`);
+      // }
+      // else{
+      //   navigate(`/${menuOption.keyPath[0]}`);
+      // }
     } 
    }
 
@@ -167,6 +179,7 @@ const addSubMenuItem = async () => {
   };
 
   const handleEditMenuItem = async () => {
+    console.log(state.selectedMenuItem, newMenuItemName)
     if (state.selectedMenuItem) {
       await api.UpdateMenuItem(state.selectedMenuItem, newMenuItemName);
       getMenuItems(); 
@@ -201,13 +214,13 @@ const addSubMenuItem = async () => {
         items={items}
         onClick={onClick}
       /> 
-      <Modal title="Add New Menu Item" open={isMenuItemModalVisible} onOk={addMenuItem} onCancel={() => handleCancel(true)}>
-        <Input placeholder="Enter menu item name" value={newMenuItemName} onChange={onChangeNewMenuItemName} />
+      <Modal title="Додати новий пункт меню" open={isMenuItemModalVisible} onOk={addMenuItem} onCancel={() => handleCancel(true)}>
+        <Input placeholder="Введіть назву" value={newMenuItemName} onChange={onChangeNewMenuItemName} />
       </Modal>
-      <Modal title="Add New Menu Item" open={isSubMenuItemModalVisible} onOk={addSubMenuItem} onCancel={() => handleCancel(false)}>
-        <Input placeholder="Enter menu item name" value={newSubMenuItemName} onChange={onChangeNewSubMenuItemName} />
+      <Modal title="Додати новий пункт меню" open={isSubMenuItemModalVisible} onOk={addSubMenuItem} onCancel={() => handleCancel(false)}>
+        <Input placeholder="Введіть назву" value={newSubMenuItemName} onChange={onChangeNewSubMenuItemName} />
         <Select
-          placeholder="Select parent item (optional)"
+          placeholder="Оберіть головне мен"
           style={{ width: '100%', marginTop: '10px' }}
           value={parentItem}
           onChange={onChangeParentItem}
@@ -218,25 +231,25 @@ const addSubMenuItem = async () => {
       </Modal>   
 
       <Modal
-  title="Options"
+  title="Опції"
   open={isEditModalVisible}
   onCancel={() => setIsEditModalVisible(false)}
   footer={[
-    <Button key="delete" type="dashed" onClick={handleDeleteMenuItem}>
-      Delete
+    <Button key="delete" type="primary" onClick={handleDeleteMenuItem} danger>
+      Видалити
     </Button>,
     <Button key="save" type="primary" onClick={handleEditMenuItem}>
-      Save Changes
+      Зберегти зміни
     </Button>,
     <Button type="primary" onClick={() => showModal(false)}>
-      Add SubItem
+      + Пункт 
     </Button>,
     <Button type="primary" onClick={() => showModal(true)}>
-        Add Item
+        + Підпункт 
     </Button>
   ]}
 >
-  <Input placeholder="Edit menu item name" defaultValue = {state.selectedMenuItem} value={newMenuItemName} onChange={(e) => setNewMenuItemName(e.target.value)} />
+  <Input placeholder="Редагувати назву меню" defaultValue = {state.selectedMenuItem} value={newMenuItemName} onChange={(e) => setNewMenuItemName(e.target.value)} />
 </Modal>   
       </div>
     </>
