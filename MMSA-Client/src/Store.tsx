@@ -10,16 +10,8 @@ type State = {
 };
 
 const initialState: State = {
-  page: {
-    Id: 0,
-    PageName: "",
-    SubPages: []
-  },
-  subPage: {
-    Id: 0,
-    PageId: 0,
-    Name:""
-  },
+  page: { Id: 0, PageName: "", SubPages: [] },
+  subPage: { Id: 0, PageId: 0, Name:"" },
   selectedMenuItem: "",
   codeOption: "cpp"
 };

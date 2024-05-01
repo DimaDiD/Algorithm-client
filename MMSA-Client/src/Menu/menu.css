@@ -1,5 +1,5 @@
 .menu{
-    width: 400px;       
+    width: 300px;       
 }
 
 ul.ant-menu.ant-menu-root.ant-menu-inline.ant-menu-light.menu.css-dev-only-do-not-override-j0nf2s {
@@ -7,10 +7,26 @@ ul.ant-menu.ant-menu-root.ant-menu-inline.ant-menu-light.menu.css-dev-only-do-no
 }
 
 span.ant-menu-title-content{
-    font-weight: 700;
-    font-size: 25px;
+    font-weight: 500;
+    font-size: 20px;
 }
 
 :where(.css-dev-only-do-not-override-j0nf2s).ant-menu-light.ant-menu-root.ant-menu-inline, :where(.css-dev-only-do-not-override-j0nf2s).ant-menu-light.ant-menu-root.ant-menu-vertical{
     border-inline-end: 0px;
+}
+
+:where(.css-dev-only-do-not-override-usln0u).ant-menu-inline.ant-menu-root .ant-menu-item, :where(.css-dev-only-do-not-override-usln0u).ant-menu-inline.ant-menu-root .ant-menu-submenu-title {
+    display: flex;
+    align-items: center;
+    transition: border-color 0.3s,background 0.3s,padding 0.2s cubic-bezier(0.215, 0.61, 0.355, 1);
+    background: white;
+}
+
+:where(.css-dev-only-do-not-override-usln0u).ant-menu-light, :where(.css-dev-only-do-not-override-usln0u).ant-menu-light>.ant-menu {
+    color: rgba(0, 0, 0, 0.88);
+    background: none;
+}
+
+:where(.css-dev-only-do-not-override-usln0u).ant-menu-light.ant-menu-root.ant-menu-inline, :where(.css-dev-only-do-not-override-usln0u).ant-menu-light>.ant-menu.ant-menu-root.ant-menu-inline, :where(.css-dev-only-do-not-override-usln0u).ant-menu-light.ant-menu-root.ant-menu-vertical, :where(.css-dev-only-do-not-override-usln0u).ant-menu-light>.ant-menu.ant-menu-root.ant-menu-vertical {
+    border-inline-end: 0px solid rgba(5, 5, 5, 0.06);
 }

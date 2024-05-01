@@ -6,8 +6,10 @@ import { PageContent } from "../../models/PageContent";
 import CodeContent from "../../PageContentTypes/CodeContent";
 import TextContent from "../../PageContentTypes/TextContent";
 import ReactQuill from "react-quill";
+import "../InfoPage/InfoPage.css";
 import 'react-quill/dist/quill.snow.css';
 import { PlusOutlined } from "@ant-design/icons";
+import notification from "../../notification/notificationMessage";
 
 export const InfoPageFilling = () => {
     let api = new MainService();
@@ -27,11 +29,10 @@ export const InfoPageFilling = () => {
     const options = [
         { label: 'C#', value: 'csharp' },
         { label: 'C++', value: 'cpp' },
-        { label: 'Python', value: 'python'},
+        { label: 'Pascal', value: 'pascal'},
       ];
 
     useEffect(() => {         
-        console.log(state.page, state.subPage, state.codeOption)
         getPageContent();
     }, [state.page, state.subPage, state.codeOption])
 
@@ -41,7 +42,7 @@ export const InfoPageFilling = () => {
 
     const showAddModal = (index: number | null) => {
         setAddIsModalVisible(true);
-        setInsertPosition(index); // Setting position to add content before or after
+        setInsertPosition(index);
     };
 
     const handleRightClick = (event: any, index: any) => {
@@ -59,13 +60,14 @@ export const InfoPageFilling = () => {
     };
 
     const handleAddContent = async (values: any) => {
+        let newContentLocation = insertPosition == 0 ? 0 : pageContent[(insertPosition ?? 0) - 1].ContentLocation + 1
         const newContent = {
             Id: 0,
             Text: values.Text.replace("<span class=\"ql-cursor\">?</span>", ''),
             SubPageId: state.subPage?.Id,
             TextType: values.Type,
             CodeType: values.CodeType,
-            ContentLocation: insertPosition !== null ? insertPosition : pageContent.length + 1,
+            ContentLocation: newContentLocation,
             PageId: state.page.Id
         };
         
@@ -78,6 +80,7 @@ export const InfoPageFilling = () => {
             setPageContent(updatedContent);
             setAddIsModalVisible(false);
             addForm.resetFields();
+            notification('success', `Створено успішно!`);
         });
     };
 
@@ -87,6 +90,8 @@ export const InfoPageFilling = () => {
             const updatedContent = pageContent.filter((_, i) => i !== insertPosition);
             setPageContent(updatedContent);
             closeContextMenu();
+            //notification('success', `Успішно видалено!`);
+            notification('error', `Щось пішло не так...`);
         });
     };
 
@@ -103,13 +108,6 @@ export const InfoPageFilling = () => {
         setCurrentPageContent(item)
     };
 
-    const menu = (
-        <Menu>
-            <Menu.Item key="edit" onClick={handleEdit}>Edit</Menu.Item>
-            <Menu.Item key="delete" onClick={handleDelete}>Delete</Menu.Item>
-        </Menu>
-    );
-
     const handleEditContent = (values: any) => {
         const newContent: PageContent = {
             Id: currentPageContent?.Id ?? 0,
@@ -120,13 +118,46 @@ export const InfoPageFilling = () => {
             ContentLocation: currentPageContent?.ContentLocation ?? 0, 
             PageId: currentPageContent?.PageId ?? 0
         };   
-        console.log(values)     
+    
         api.UpdatePageContent(newContent).then(() => {
             pageContent[insertPosition ?? 0] = newContent;
             setEditIsModalVisible(false);
             editForm.resetFields();
+            notification('success', `Успішно оновлено!`);
         });
     }    
+
+    const menu = (
+        <Menu>
+            <Menu.Item key="edit" onClick={handleEdit}>Редагувати</Menu.Item>
+            <Menu.Item key="delete" onClick={handleDelete}>Видалити</Menu.Item>
+        </Menu>
+    );
+
+    const toolbarModules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{'script': 'sub'}, {'script': 'super'}], 
+            [{'color': []}, {'background': []}],
+            [{'font': []}],
+            [{'size': ['small', false, 'large', 'huge']}], 
+            [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}], 
+            ['link', 'image', 'video'],
+            ['clean'] 
+        ]
+    };
+    
+    const toolbarFormats = [
+        'header',
+    'bold', 'italic', 'underline', 'strike', 'blockquote',
+    'script',
+    'color', 'background',
+    'font',
+    'size',
+    'list', 'bullet', 'indent',
+    'link', 'image', 'video'
+    ];
 
     return (
         <>
@@ -141,15 +172,16 @@ export const InfoPageFilling = () => {
             </div>
             { isEditPageMode && <Button icon={<PlusOutlined />} type="primary" style={{width:"200px", margin:"10px 10px 20px 10px"}} onClick={() => showAddModal(0)}>Додати текст</Button> }
             {pageContent.map((content, index) => (
-                <div key={content.Id} onMouseEnter={() => setInsertPosition(index)} onContextMenu={(event) => handleRightClick(event, index)}>
+                <div key={content.Id} onMouseEnter={() => setInsertPosition(index)} onContextMenu={(event) => handleRightClick(event, index)} >
                     {index === insertPosition && isEditPageMode && index != 0 && (
                         <Button icon={<PlusOutlined />} type="primary" style={{width:"200px", margin:"10px 10px 20px 10px"}} onClick={() => showAddModal(index)}>Додати текст</Button>
                     )}
                     {content.TextType == "Code" ? <CodeContent code={content.Text} language={content.CodeType}/> : <TextContent text={content.Text}/>}                    
-                </div>                
+                </div>                            
             ))}
             { isEditPageMode && <Button icon={<PlusOutlined />} type="primary" onClick={() => showAddModal(pageContent.length)} style={{width:"200px", margin:"10px 10px 20px 10px"}}>Додати текст</Button>}
-            {contextMenu.visible && (
+            <div style={{marginBottom:"20px"}}/>
+            {contextMenu.visible && isEditPageMode && (
                 <div style={{ position: 'absolute', top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}>
                     <Dropdown 
                         overlay={menu} 
@@ -161,35 +193,36 @@ export const InfoPageFilling = () => {
             )}
 
             {isAddModalVisible && isEditPageMode && (
-                <Modal title="Додати" open={isAddModalVisible} footer={null} onCancel={() => setAddIsModalVisible(false)}>
+                <Modal title="Додати" open={isAddModalVisible} footer={null} onCancel={() => setAddIsModalVisible(false)} style={{width: "600px"}}>
                     <Form form={addForm} onFinish={handleAddContent}>
-                        <Form.Item name="Type" label="Тип тексту" rules={[{ required: true }]}>
-                            <Select placeholder="Оберіть тип тексту" onChange={setContentType}>
+                        <Form.Item name="Type" label="Тип тексту" rules={[{ required: true, message: "Поле є порожнім!"}]}>
+                            <Select placeholder="Оберіть тип" onChange={setContentType}>
                                 <Select.Option value="Text">Текст</Select.Option>
                                 <Select.Option value="Code">Код</Select.Option>
                             </Select>
                         </Form.Item>
                         {contentType === 'Code' && (
-                            <Form.Item name="CodeType" label="Мова програмування" rules={[{ required: true }]}>
+                            <Form.Item name="CodeType" label="Мова програмування" rules={[{ required: true , message: "Поле є порожнім!"}]}>
                                 <Select placeholder="Оберіть мову програмування">
                                     <Select.Option value="csharp">C#</Select.Option>
-                                    <Select.Option value="python">Python</Select.Option>
                                     <Select.Option value="cpp">C++</Select.Option>
+                                    <Select.Option value="pascal">Pascal</Select.Option>
                                 </Select>
                             </Form.Item>
                         )}
                         {contentType === 'Text' && (
-                            <Form.Item name="CodeType" label="Тип тексту" rules={[{ required: true }]}>
-                                <Select placeholder="Select a text types">
+                            <Form.Item name="CodeType" label="Доступ" rules={[{ required: true , message: "Поле є порожнім!"}]}>
+                                <Select placeholder="Доступ">
                                     <Select.Option value="All">Усім</Select.Option>
                                     <Select.Option value="csharp">C#</Select.Option>
-                                    <Select.Option value="python">Python</Select.Option>
                                     <Select.Option value="cpp">C++</Select.Option>
+                                    <Select.Option value="pascal">Pascal</Select.Option>
                                 </Select>
                             </Form.Item>
                         )}
-                        <Form.Item name="Text" label="Текст" rules={[{ required: true }]}>
-                            {contentType === 'Code' ? <Input.TextArea /> : <ReactQuill theme="snow" value={editOrAddText} onChange={setEditOrAddText} />}
+                        <Form.Item name="Text" label="Текст" rules={[{ required: true, message: "Поле є порожнім!" }]}>
+                            {contentType === 'Code' ? <Input.TextArea style={{height: "300px", width:"100%"}}/> : <ReactQuill theme="snow" modules={toolbarModules}
+                formats={toolbarFormats} value={editOrAddText} onChange={setEditOrAddText} className="react-quill-editor"/>}
                         </Form.Item>
                         <Form.Item>
                             <Button type="primary" htmlType="submit">
@@ -201,35 +234,36 @@ export const InfoPageFilling = () => {
             )} 
 
             {isEditModalVisible && isEditPageMode && (
-                <Modal title="Редагувати" open={isEditModalVisible} footer={null} onCancel={() => setEditIsModalVisible(false)}>
+                <Modal title="Редагування" open={isEditModalVisible} footer={null} onCancel={() => setEditIsModalVisible(false)}>
                     <Form form={editForm} onFinish={handleEditContent}>
-                        <Form.Item name="Type" label="Тип тексту" rules={[{ required: true }]}>
+                        <Form.Item name="Type" label="Тип тексту" rules={[{ required: true , message: "Поле є порожнім!"}]}>
                             <Select placeholder="Оберіть тип тексту" onChange={setContentType}>
                                 <Select.Option value="Text">Текст</Select.Option>
                                 <Select.Option value="Code">Код</Select.Option>
                             </Select>
                         </Form.Item>
                         {contentType === 'Code' && (
-                            <Form.Item name="CodeType" label="Мова програмування" rules={[{ required: true }]}>
+                            <Form.Item name="CodeType" label="Мова програмування" rules={[{ required: true , message: "Поле є порожнім!"}]}>
                                 <Select placeholder="Оберіть мову програмування">
                                     <Select.Option value="csharp">C#</Select.Option>
-                                    <Select.Option value="python">Python</Select.Option>
                                     <Select.Option value="cpp">C++</Select.Option>
+                                    <Select.Option value="pascal">Pascal</Select.Option>
                                 </Select>
                             </Form.Item>
                         )}
                         {contentType === 'Text' && (
-                            <Form.Item name="CodeType" label="Присвоїти текст" rules={[{ required: true }]}>
+                            <Form.Item name="CodeType" label="Присвоїти текст" rules={[{ required: true , message: "Поле є порожнім!"}]}>
                                 <Select placeholder="Оберіть тип тексту">
                                     <Select.Option value="All">Усім</Select.Option>
                                     <Select.Option value="csharp">C#</Select.Option>
-                                    <Select.Option value="python">Python</Select.Option>
                                     <Select.Option value="cpp">C++</Select.Option>
+                                    <Select.Option value="pascal">Pascal</Select.Option>
                                 </Select>
                             </Form.Item>
                         )}
-                        <Form.Item name="Text" label="Текст" rules={[{ required: true }]}>
-                            {contentType === 'Code' ? <Input.TextArea /> : <ReactQuill theme="snow" value={editOrAddText} onChange={setEditOrAddText} />}
+                        <Form.Item name="Text" label="Текст" rules={[{ required: true , message: "Поле є порожнім!"}]}>
+                            {contentType === 'Code' ? <Input.TextArea /> : <ReactQuill theme="snow" modules={toolbarModules}
+                formats={toolbarFormats} value={editOrAddText} onChange={setEditOrAddText} />}
                         </Form.Item>
                         <Form.Item>
                             <Button type="primary" htmlType="submit">

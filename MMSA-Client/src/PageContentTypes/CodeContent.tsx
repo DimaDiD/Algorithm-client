@@ -2,7 +2,9 @@ import React from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/monokai.css';
 import "../PageContentTypes/CodeContentStyle.css";
+import delphi from 'highlight.js/lib/languages/delphi';
 
+hljs.registerLanguage('pascal', delphi);
 hljs.registerLanguage('csharp', require('highlight.js/lib/languages/csharp'));
 hljs.registerLanguage('cpp', require('highlight.js/lib/languages/cpp'));
 hljs.registerLanguage('python', require('highlight.js/lib/languages/python'));

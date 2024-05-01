@@ -7,6 +7,7 @@ import { Page } from "../models/Page";
 import "../Menu/menu.css";
 import { SubPage } from "../models/SubPages";
 import { ItemType, MenuItemGroupType, MenuItemType, SubMenuType } from "antd/es/menu/hooks/useItems";
+import notification from "../notification/notificationMessage";
 
 const { Option } = Select;
 
@@ -27,14 +28,8 @@ function getItem(
   onContextMenu?: (event: React.MouseEvent) => void
 ): MenuItem {
   return {
-    key,
-    icon,
-    children,
-    label: (
-      <Tooltip title={label}>
-        {truncateText(label, 20)}
-      </Tooltip>
-    ),
+    key, icon, children,
+    label: (<Tooltip title={label}> {truncateText(label, 40)} </Tooltip> ),
     onContextMenu
   } as MenuItem;
 }
@@ -94,16 +89,11 @@ const MenuDrawer = () => {
     else{
       actions.setSubPage(undefined)
       navigate(`/${menuOption.keyPath[0]}`);
-      // if ("Головна" === menuOption.keyPath[0]) {
-      //   navigate(`/`);
-      // }
-      // else{
-      //   navigate(`/${menuOption.keyPath[0]}`);
-      // }
     } 
    }
 
-   function isMenuItemWithChildren(item: ItemType | null): item is SubMenuType<MenuItemType> | MenuItemGroupType<MenuItemType> {
+   function isMenuItemWithChildren(item: ItemType | null): 
+    item is SubMenuType<MenuItemType> | MenuItemGroupType<MenuItemType> {
     return item !== null && item !== undefined && 'children' in item;
 }
 
@@ -125,6 +115,7 @@ const addSubMenuItem = async () => {
       setMenuItems(newItems);
 
       await api.CreateSubPage(parentItem, newSubMenuItemName);
+      notification('success', `Успішно додано!`);
   } else {
       setMenuItems(prevItems => [...prevItems, newItem]);
       await api.CreatePage(newMenuItemName);
@@ -170,6 +161,7 @@ const addSubMenuItem = async () => {
     await api.CreatePage(newMenuItemName).then(() => {
       setIsMenuItemModalVisible(false);
       setNewMenuItemName('');
+      notification('success', `Успішно додано!`);
     });
     
   };
@@ -179,12 +171,12 @@ const addSubMenuItem = async () => {
   };
 
   const handleEditMenuItem = async () => {
-    console.log(state.selectedMenuItem, newMenuItemName)
     if (state.selectedMenuItem) {
-      await api.UpdateMenuItem(state.selectedMenuItem, newMenuItemName);
+      await api.UpdateMenuItem(state.selectedMenuItem, newMenuItemName); 
       getMenuItems(); 
       setIsEditModalVisible(false);
       setNewMenuItemName('');
+      notification('success', `Успішно оновлено!`);
     }
   };
   
@@ -193,6 +185,7 @@ const addSubMenuItem = async () => {
       await api.DeleteMenuItem(state.selectedMenuItem);  
       getMenuItems();
       setIsEditModalVisible(false);
+      notification('success', `Успішно видалено!`);
     }
   };
   
@@ -217,7 +210,7 @@ const addSubMenuItem = async () => {
       <Modal title="Додати новий пункт меню" open={isMenuItemModalVisible} onOk={addMenuItem} onCancel={() => handleCancel(true)}>
         <Input placeholder="Введіть назву" value={newMenuItemName} onChange={onChangeNewMenuItemName} />
       </Modal>
-      <Modal title="Додати новий пункт меню" open={isSubMenuItemModalVisible} onOk={addSubMenuItem} onCancel={() => handleCancel(false)}>
+      <Modal title="Додати новий підпункт меню" open={isSubMenuItemModalVisible} onOk={addSubMenuItem} onCancel={() => handleCancel(false)}>
         <Input placeholder="Введіть назву" value={newSubMenuItemName} onChange={onChangeNewSubMenuItemName} />
         <Select
           placeholder="Оберіть головне мен"
@@ -242,10 +235,10 @@ const addSubMenuItem = async () => {
       Зберегти зміни
     </Button>,
     <Button type="primary" onClick={() => showModal(false)}>
-      + Пункт 
+      + Підпункт 
     </Button>,
     <Button type="primary" onClick={() => showModal(true)}>
-        + Підпункт 
+        + Пункт
     </Button>
   ]}
 >
