@@ -2,6 +2,7 @@
   "name": "mmsa-clien",
   "version": "0.1.0",
   "private": true,
+  "proxy": "https://localhost:7131",
   "dependencies": {
     "@ant-design/icons": "^5.3.6",
     "@testing-library/jest-dom": "^5.16.5",

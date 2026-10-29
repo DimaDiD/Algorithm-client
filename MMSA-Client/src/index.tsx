@@ -1,7 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ConfigProvider } from 'antd';
+import ukUA from 'antd/locale/uk_UA';
 import './index.css';
+import './styles/app.css';
+import { appTheme } from './theme/theme';
 import App from './App';
+import { AuthProvider } from './auth/AuthContext';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(
@@ -9,7 +14,11 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <ConfigProvider theme={appTheme} locale={ukUA}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ConfigProvider>
   </React.StrictMode>
 );
 

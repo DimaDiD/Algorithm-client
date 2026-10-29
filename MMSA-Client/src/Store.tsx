@@ -1,52 +1,60 @@
 import { Action, createHook, createStore } from "react-sweet-state";
 import { Page } from "./models/Page";
-import { SubPage } from "./models/SubPages";
+import MainService from "./services/mainService";
+
+const CODE_OPTION_KEY = "mmsa.codeOption";
+const DEFAULT_CODE_OPTION = "csharp";
+
+const readCodeOption = (): string => {
+  try {
+    return localStorage.getItem(CODE_OPTION_KEY) ?? DEFAULT_CODE_OPTION;
+  } catch {
+    return DEFAULT_CODE_OPTION;
+  }
+};
+
+const saveCodeOption = (value: string) => {
+  try {
+    localStorage.setItem(CODE_OPTION_KEY, value);
+  } catch {
+  }
+};
 
 type State = {
-  page: Page;
-  subPage?: SubPage;
-  selectedMenuItem: string;
-  codeOption: string
+  codeOption: string;
+  menu: Page[];
+  isMenuLoaded: boolean;
+  isEditMode: boolean;
 };
 
 const initialState: State = {
-  page: { Id: 0, PageName: "", SubPages: [] },
-  subPage: { Id: 0, PageId: 0, Name:"" },
-  selectedMenuItem: "",
-  codeOption: "cpp"
+  codeOption: readCodeOption(),
+  menu: [],
+  isMenuLoaded: false,
+  isEditMode: false,
 };
 
+const api = new MainService();
+
 const actions = {
-  setPage:
-    (newPage: Page): Action<State> =>
-    ({ setState }) => {
-      setState({
-        page: newPage,
-      });
-    },
-
-  setSubPage:
-    (newSubPage?: SubPage): Action<State> =>
-    ({ setState }) => {
-      setState({
-        subPage: newSubPage,
-      });
-    },
-
-  setSelectedMenuItem:
-    (selectedMenuItem: string): Action<State> =>
-    ({ setState }) => {
-      setState({
-        selectedMenuItem: selectedMenuItem
-      });
-    },
-
   setCodeOption:
-    (selectedCodeOption: string): Action<State> =>
+    (codeOption: string): Action<State> =>
     ({ setState }) => {
-      setState({
-        codeOption: selectedCodeOption
-      });
+      saveCodeOption(codeOption);
+      setState({ codeOption });
+    },
+
+  setEditMode:
+    (isEditMode: boolean): Action<State> =>
+    ({ setState }) => {
+      setState({ isEditMode });
+    },
+
+  loadMenu:
+    (): Action<State, void, Promise<void>> =>
+    async ({ setState }) => {
+      const menu: Page[] = await api.getMenuItems();
+      setState({ menu, isMenuLoaded: true });
     },
 };
 

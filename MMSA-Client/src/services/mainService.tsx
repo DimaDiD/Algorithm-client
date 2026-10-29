@@ -24,7 +24,7 @@ export default class MainService {
 
   GetPageContentByMenuStatus = async (pageId: number, codeStatus: string, subPageId?: number) => {
     let path = `PageContent/GetPageContentByMenuStatus?pageId=${pageId}&codeStatus=${codeStatus}`;
-    if(subPageId != undefined){
+    if(subPageId !== undefined){
       path += `&subPageId=${subPageId}`
     }
     
