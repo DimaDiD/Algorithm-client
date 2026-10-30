@@ -3,14 +3,13 @@ import { Modal, Skeleton } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { PageContent } from "../../models/PageContent";
-import { useAuth } from "../../auth/AuthContext";
+import { useCanEditCourse, useCodeOption, useCourseLanguages } from "../../course/useCourse";
 import { useTable } from "../../Store";
 import MainService from "../../services/mainService";
 import notification from "../../notification/notificationMessage";
 import CodeContent from "../../PageContentTypes/CodeContent";
 import TextContent from "../../PageContentTypes/TextContent";
 import ContentEditorModal, { ContentFormValues } from "./ContentEditorModal";
-import { LANGUAGE_OPTIONS } from "./LanguageSwitch";
 
 type Props = {
   pageId: number;
@@ -49,7 +48,7 @@ const InsertBar = ({ onInsert, position }: { onInsert: (type: ContentFormValues[
 const TopicContent = ({ pageId, subPageId }: Props) => {
   const api = useMemo(() => new MainService(), []);
   const [state] = useTable();
-  const { canEdit } = useAuth();
+  const canEdit = useCanEditCourse();
   const [modal, contextHolder] = Modal.useModal();
   const [blocks, setBlocks] = useState<PageContent[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -58,7 +57,8 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
   const [editor, setEditor] = useState<EditorState | null>(null);
 
   const isEditing = canEdit && state.isEditMode;
-  const codeOption = state.codeOption;
+  const codeOption = useCodeOption();
+  const courseLanguages = useCourseLanguages();
 
   const fetchContent = useCallback(
     async (language: string): Promise<PageContent[]> => {
@@ -101,12 +101,15 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
     };
   }, [fetchContent, codeOption]);
 
+  const languageCodes = useMemo(() => courseLanguages.map((language) => language.Code).join("|"), [courseLanguages]);
+
   useEffect(() => {
     if (!hasLoaded) return;
-    LANGUAGE_OPTIONS.map((option) => option.value)
-      .filter((language) => !cache.current.has(language))
+    languageCodes
+      .split("|")
+      .filter((language) => language && !cache.current.has(language))
       .forEach((language) => fetchContent(language).catch(() => undefined));
-  }, [hasLoaded, fetchContent]);
+  }, [hasLoaded, fetchContent, languageCodes]);
 
   const openAdd = (position: number, type: ContentFormValues["Type"]) =>
     setEditor({

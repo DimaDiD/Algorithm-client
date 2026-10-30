@@ -1,26 +1,27 @@
 import { Segmented } from "antd";
 import { useTable } from "../../Store";
-
-export const LANGUAGE_OPTIONS = [
-  { label: "C#", value: "csharp" },
-  { label: "C++", value: "cpp" },
-  { label: "Pascal", value: "pascal" },
-];
+import { pickCodeOption, useCourseLanguages } from "../../course/useCourse";
 
 type Props = {
   variant?: "light" | "dark";
+  codes?: string[];
 };
 
-const LanguageSwitch = ({ variant = "light" }: Props) => {
+const LanguageSwitch = ({ variant = "light", codes }: Props) => {
   const [state, actions] = useTable();
+  const courseLanguages = useCourseLanguages();
+
+  const source = codes ? state.languages.filter((language) => codes.includes(language.Code)) : courseLanguages;
+  const options = source.map((language) => ({ label: language.Name, value: language.Code }));
+  const value = pickCodeOption(state.codeOption, options.map((option) => option.value));
 
   return (
     <Segmented
       aria-label="Мова прикладів коду"
       className={`lang-switch${variant === "dark" ? " lang-switch--dark" : ""}`}
-      options={LANGUAGE_OPTIONS}
-      value={state.codeOption}
-      onChange={(value) => actions.setCodeOption(String(value))}
+      options={options}
+      value={value}
+      onChange={(next) => actions.setCodeOption(String(next))}
     />
   );
 };

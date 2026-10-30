@@ -1,28 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Drawer, Result, Skeleton } from "antd";
 import { Link, useParams } from "react-router-dom";
-import { useTable } from "../../Store";
-import { findTopic, flattenTopics } from "../../course/courseUtils";
+import { coursePath, findTopic, flattenTopics } from "../../course/courseUtils";
+import { useCanEditCourse, useLoadCourse } from "../../course/useCourse";
 import AppHeader from "../../components/layout/AppHeader";
 import AppFooter from "../../components/layout/AppFooter";
 import CourseNav from "../../components/course/CourseNav";
 import LanguageSwitch from "../../components/course/LanguageSwitch";
 import TopicContent from "../../components/course/TopicContent";
 import Pager from "../../components/course/Pager";
+import ExerciseSection from "../../components/exercises/ExerciseSection";
 
-const SITE_TITLE = "Методи розробки алгоритмів";
+const SITE_TITLE = "Основи програмування";
 
 export const TopicPage = () => {
-  const { page: pageName, subPage: subPageName } = useParams();
-  const [state, actions] = useTable();
+  const { courseSlug = "", page: pageName, subPage: subPageName } = useParams();
+  const state = useLoadCourse(courseSlug);
+  const canEditCourse = useCanEditCourse();
   const [isNavOpen, setIsNavOpen] = useState(false);
 
-  useEffect(() => {
-    if (!state.isMenuLoaded) actions.loadMenu();
-  }, [state.isMenuLoaded, actions]);
-
-  const topics = useMemo(() => flattenTopics(state.menu), [state.menu]);
-  const topic = useMemo(() => findTopic(state.menu, pageName, subPageName), [state.menu, pageName, subPageName]);
+  const course = state.course?.Slug === courseSlug ? state.course : null;
+  const isLoaded = !!course && state.isMenuLoaded;
+  const topics = useMemo(() => flattenTopics(courseSlug, state.menu), [courseSlug, state.menu]);
+  const topic = useMemo(
+    () => findTopic(courseSlug, state.menu, pageName, subPageName),
+    [courseSlug, state.menu, pageName, subPageName]
+  );
   const index = topic ? topics.findIndex((item) => item.path === topic.path) : -1;
 
   useEffect(() => {
@@ -31,24 +34,55 @@ export const TopicPage = () => {
   }, [pageName, subPageName]);
 
   useEffect(() => {
-    document.title = topic ? `${topic.title} — ${SITE_TITLE}` : SITE_TITLE;
-  }, [topic]);
+    const suffix = course ? course.Title : SITE_TITLE;
+    document.title = topic ? `${topic.title} — ${suffix}` : suffix;
+  }, [topic, course]);
 
-  const renderNav = () => (
-    <CourseNav menu={state.menu} activeTopic={topic} onNavigate={() => setIsNavOpen(false)} />
-  );
+  const renderNav = () =>
+    course && (
+      <CourseNav
+        courseId={course.Id}
+        courseSlug={course.Slug}
+        menu={state.menu}
+        activeTopic={topic}
+        onNavigate={() => setIsNavOpen(false)}
+      />
+    );
+
+  if (state.courseStatus === "notFound" || state.courseStatus === "error") {
+    return (
+      <div className="page">
+        <AppHeader />
+        <main className="container section">
+          <div className="card topic-card">
+            <Result
+              status={state.courseStatus === "notFound" ? "404" : "error"}
+              title={state.courseStatus === "notFound" ? "Курс не знайдено" : "Не вдалося завантажити курс"}
+              subTitle={
+                state.courseStatus === "notFound"
+                  ? "Можливо, його ще не опубліковано або видалено."
+                  : "Перевірте з'єднання і спробуйте оновити сторінку."
+              }
+              extra={<Link to="/" className="btn btn--primary">До каталогу курсів</Link>}
+            />
+          </div>
+        </main>
+        <AppFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="page">
-      <AppHeader onOpenNavigation={() => setIsNavOpen(true)} />
+      <AppHeader onOpenNavigation={() => setIsNavOpen(true)} courseSlug={courseSlug} showEditToggle={canEditCourse} />
 
       <div className="container topic-layout">
         <aside className="course-sidebar card">
-          {state.isMenuLoaded ? renderNav() : <div style={{ padding: 16 }}><Skeleton active /></div>}
+          {isLoaded ? renderNav() : <div style={{ padding: 16 }}><Skeleton active /></div>}
         </aside>
 
         <main className="topic-main">
-          {!state.isMenuLoaded ? (
+          {!isLoaded ? (
             <div className="card topic-card">
               <Skeleton active paragraph={{ rows: 8 }} />
             </div>
@@ -59,8 +93,8 @@ export const TopicPage = () => {
                 title="Тему не знайдено"
                 subTitle="Можливо, її перейменували або видалили."
                 extra={
-                  <Link to="/" className="btn btn--primary">
-                    На головну
+                  <Link to={coursePath(courseSlug)} className="btn btn--primary">
+                    До змісту курсу
                   </Link>
                 }
               />
@@ -70,7 +104,9 @@ export const TopicPage = () => {
               <article className="card topic-card">
                 <div className="topic-card__top">
                   <nav className="breadcrumbs" aria-label="Навігаційний ланцюжок">
-                    <Link to="/">Головна</Link>
+                    <Link to="/">Курси</Link>
+                    <span aria-hidden="true">/</span>
+                    <Link to={coursePath(courseSlug)}>{course?.Title}</Link>
                     <span aria-hidden="true">/</span>
                     {topic.subPage ? (
                       <>
@@ -88,6 +124,8 @@ export const TopicPage = () => {
                 <TopicContent key={topic.path} pageId={topic.page.Id} subPageId={topic.subPage?.Id} />
               </article>
 
+              <ExerciseSection key={`exercises-${topic.path}`} pageId={topic.page.Id} subPageId={topic.subPage?.Id} />
+
               <Pager previous={index > 0 ? topics[index - 1] : undefined} next={topics[index + 1]} />
             </>
           )}
@@ -102,7 +140,7 @@ export const TopicPage = () => {
         open={isNavOpen}
         onClose={() => setIsNavOpen(false)}
       >
-        {state.isMenuLoaded && renderNav()}
+        {isLoaded && renderNav()}
       </Drawer>
 
       <AppFooter />

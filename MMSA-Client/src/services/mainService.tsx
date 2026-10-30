@@ -1,46 +1,52 @@
 import { PageContent } from "../models/PageContent";
 import Api from "./api-service";
 
+const withQuery = (path: string, params: Record<string, string | number>) =>
+  `${path}?${new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString()}`;
+
 export default class MainService {
-  getMenuItems = async () => {
-    return (await Api.get(`Page/GetMenuItems`)).data;
+  getMenuItems = async (courseId: number) => {
+    return (await Api.get(`Page/GetMenuItems`, { courseId })).data;
   };
 
-  CreatePage = async (pageName: string) => {
-    return (await Api.post(`Page/CreatePage?pageName=${pageName}`))
+  CreatePage = async (courseId: number, pageName: string) => {
+    return await Api.post(withQuery("Page/CreatePage", { courseId, pageName }));
   };
 
-  CreateSubPage = async (pageName: string, subPageName: string) => {
-    return (await Api.post(`SubPage/CreateSubPage?pageName=${pageName}&subPageName=${subPageName}`))
+  RenamePage = async (pageId: number, newName: string) => {
+    return await Api.put(withQuery("Page/RenamePage", { pageId, newName }));
   };
 
-  UpdateMenuItem = async (oldTitle: string, newTitle: string) => {
-    return (await Api.put(`SubPage/UpdateMenuItem?oldTitle=${oldTitle}&newTitle=${newTitle}`))
+  DeletePage = async (pageId: number) => {
+    return await Api.remove("Page/DeletePage", { pageId });
   };
 
-  DeleteMenuItem = async (title: string) => {
-    return (await Api.remove(`SubPage/DeleteMenuItem?title=${title}`))
+  CreateSubPage = async (pageId: number, subPageName: string) => {
+    return await Api.post(withQuery("SubPage/CreateSubPage", { pageId, subPageName }));
+  };
+
+  RenameSubPage = async (subPageId: number, newName: string) => {
+    return await Api.put(withQuery("SubPage/RenameSubPage", { subPageId, newName }));
+  };
+
+  DeleteSubPage = async (subPageId: number) => {
+    return await Api.remove("SubPage/DeleteSubPage", { subPageId });
   };
 
   GetPageContentByMenuStatus = async (pageId: number, codeStatus: string, subPageId?: number) => {
-    let path = `PageContent/GetPageContentByMenuStatus?pageId=${pageId}&codeStatus=${codeStatus}`;
-    if(subPageId !== undefined){
-      path += `&subPageId=${subPageId}`
-    }
-    
-    return (await Api.get(path)).data;
-  }
+    return (await Api.get(`PageContent/GetPageContentByMenuStatus`, { pageId, codeStatus, subPageId })).data;
+  };
 
   CreatePageContent = async (pageContent: PageContent) => {
-    return (await Api.post(`PageContent/CreatePageContent`, pageContent))
+    return await Api.post(`PageContent/CreatePageContent`, pageContent);
   };
 
   DeletePageContent = async (pageContentId: number) => {
-    return (await Api.remove(`PageContent/DeletePageContent?pageContentId=${pageContentId}`))
+    return await Api.remove(`PageContent/DeletePageContent`, { pageContentId });
   };
 
   UpdatePageContent = async (pageContent: PageContent) => {
-    return (await Api.put(`PageContent/UpdatePageContent`, pageContent))
+    return await Api.put(`PageContent/UpdatePageContent`, pageContent);
   };
 
   GetProgrammingTopics = async (): Promise<string[]> => {

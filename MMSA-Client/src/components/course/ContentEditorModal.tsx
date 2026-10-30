@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Form, Input, Modal, Radio, Select } from "antd";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import { LANGUAGE_OPTIONS } from "./LanguageSwitch";
+import { useCourseLanguages } from "../../course/useCourse";
 import MainService from "../../services/mainService";
 
 export type ContentFormValues = {
@@ -20,7 +20,6 @@ type Props = {
   onSubmit: (values: ContentFormValues) => Promise<void>;
 };
 
-const TEXT_VISIBILITY_OPTIONS = [{ label: "Усім мовам", value: "All" }, ...LANGUAGE_OPTIONS];
 
 const QUILL_MODULES = {
   toolbar: [
@@ -60,6 +59,15 @@ const ContentEditorModal = ({ open, mode, initialValues, onCancel, onSubmit }: P
   const [form] = Form.useForm<ContentFormValues>();
   const type = Form.useWatch("Type", form);
   const [isSaving, setIsSaving] = useState(false);
+  const courseLanguages = useCourseLanguages();
+  const languageOptions = useMemo(
+    () => courseLanguages.map((language) => ({ label: language.Name, value: language.Code })),
+    [courseLanguages]
+  );
+  const textVisibilityOptions = useMemo(
+    () => [{ label: "Усім мовам", value: "All" }, ...languageOptions],
+    [languageOptions]
+  );
   const api = useMemo(() => new MainService(), []);
   const [knownTopics, setKnownTopics] = useState<string[]>([]);
 
@@ -105,7 +113,7 @@ const ContentEditorModal = ({ open, mode, initialValues, onCancel, onSubmit }: P
         onFinish={handleFinish}
         onValuesChange={(changed: Partial<ContentFormValues>) => {
           if (!changed.Type) return;
-          const options = changed.Type === "Code" ? LANGUAGE_OPTIONS : TEXT_VISIBILITY_OPTIONS;
+          const options = changed.Type === "Code" ? languageOptions : textVisibilityOptions;
           const current = form.getFieldValue("CodeType");
           if (!options.some((option) => option.value === current)) {
             form.setFieldValue("CodeType", options[0].value);
@@ -127,7 +135,7 @@ const ContentEditorModal = ({ open, mode, initialValues, onCancel, onSubmit }: P
               rules={[{ required: true, message: "Оберіть значення" }]}
               style={{ minWidth: 220 }}
             >
-              <Select options={type === "Code" ? LANGUAGE_OPTIONS : TEXT_VISIBILITY_OPTIONS} />
+              <Select options={type === "Code" ? languageOptions : textVisibilityOptions} />
             </Form.Item>
           )}
         </div>

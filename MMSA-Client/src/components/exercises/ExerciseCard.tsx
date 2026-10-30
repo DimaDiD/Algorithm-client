@@ -1,0 +1,210 @@
+import { useMemo, useState } from "react";
+import { Button, Checkbox, Input, Radio } from "antd";
+import { CheckCircleFilled, CloseCircleFilled, DeleteOutlined, EditOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Exercise, ExerciseCheckResult, Question, QuestionAnswer, QuestionResult } from "../../models/Exercise";
+import ExerciseService from "../../services/exerciseService";
+import notification from "../../notification/notificationMessage";
+
+type AnswerState = {
+  selected: number[];
+  text: string;
+};
+
+type Props = {
+  exercise: Exercise;
+  isEditing: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+};
+
+const EMPTY_ANSWER: AnswerState = { selected: [], text: "" };
+
+const isAnswered = (question: Question, answer?: AnswerState) =>
+  !!answer && (question.Type === "ShortAnswer" ? answer.text.trim().length > 0 : answer.selected.length > 0);
+
+const optionClass = (optionId: number, answer: AnswerState, result?: QuestionResult) => {
+  if (!result) return "exercise-option";
+  if (result.CorrectOptionIds.includes(optionId)) return "exercise-option is-correct";
+  if (answer.selected.includes(optionId)) return "exercise-option is-wrong";
+  return "exercise-option";
+};
+
+const ExerciseCard = ({ exercise, isEditing, onEdit, onDelete }: Props) => {
+  const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
+  const [result, setResult] = useState<ExerciseCheckResult | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const totalPoints = useMemo(() => exercise.Questions.reduce((sum, q) => sum + q.Points, 0), [exercise]);
+  const answeredCount = exercise.Questions.filter((q) => isAnswered(q, answers[q.Id])).length;
+  const resultsById = useMemo(
+    () => new Map((result?.Questions ?? []).map((item) => [item.QuestionId, item])),
+    [result]
+  );
+
+  const setAnswer = (questionId: number, patch: Partial<AnswerState>) =>
+    setAnswers((previous) => ({
+      ...previous,
+      [questionId]: { ...(previous[questionId] ?? EMPTY_ANSWER), ...patch },
+    }));
+
+  const check = async () => {
+    const payload: QuestionAnswer[] = exercise.Questions.map((question) => {
+      const answer = answers[question.Id] ?? EMPTY_ANSWER;
+      return { QuestionId: question.Id, SelectedOptionIds: answer.selected, Text: answer.text };
+    });
+
+    setIsChecking(true);
+    try {
+      setResult(await ExerciseService.check(exercise.Id, payload));
+    } catch {
+      notification("error", "Не вдалося перевірити відповіді. Спробуйте ще раз.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const retry = () => {
+    setResult(null);
+    setAnswers({});
+  };
+
+  const renderQuestionBody = (question: Question) => {
+    const answer = answers[question.Id] ?? EMPTY_ANSWER;
+    const questionResult = resultsById.get(question.Id);
+    const isLocked = result !== null;
+
+    if (question.Type === "SingleChoice") {
+      return (
+        <Radio.Group
+          className="exercise-options"
+          value={answer.selected[0]}
+          disabled={isLocked}
+          onChange={(event) => setAnswer(question.Id, { selected: [event.target.value] })}
+        >
+          {question.Options.map((option) => (
+            <Radio key={option.Id} value={option.Id} className={optionClass(option.Id, answer, questionResult)}>
+              {option.Text}
+            </Radio>
+          ))}
+        </Radio.Group>
+      );
+    }
+
+    if (question.Type === "MultipleChoice") {
+      return (
+        <Checkbox.Group
+          className="exercise-options"
+          value={answer.selected}
+          disabled={isLocked}
+          onChange={(values) => setAnswer(question.Id, { selected: values as number[] })}
+        >
+          {question.Options.map((option) => (
+            <Checkbox key={option.Id} value={option.Id} className={optionClass(option.Id, answer, questionResult)}>
+              {option.Text}
+            </Checkbox>
+          ))}
+        </Checkbox.Group>
+      );
+    }
+
+    if (question.Type === "ShortAnswer") {
+      return (
+        <div className="exercise-short">
+          <Input
+            size="large"
+            placeholder="Ваша відповідь"
+            value={answer.text}
+            disabled={isLocked}
+            maxLength={500}
+            status={questionResult?.Status === "Incorrect" ? "error" : undefined}
+            onChange={(event) => setAnswer(question.Id, { text: event.target.value })}
+            onPressEnter={() => !isLocked && check()}
+          />
+          {questionResult?.Status === "Incorrect" && questionResult.AcceptedAnswers.length > 0 && (
+            <span className="exercise-hint">Правильна відповідь: {questionResult.AcceptedAnswers.join(" або ")}</span>
+          )}
+        </div>
+      );
+    }
+
+    return <span className="exercise-hint">Цей тип завдання поки не підтримується.</span>;
+  };
+
+  return (
+    <section className="card exercise-card" aria-labelledby={`exercise-${exercise.Id}`}>
+      <header className="exercise-card__header">
+        <div className="exercise-card__heading">
+          <h3 id={`exercise-${exercise.Id}`} className="exercise-card__title">{exercise.Title}</h3>
+          <span className="exercise-card__meta">
+            {exercise.Questions.length} пит. · {totalPoints} б.
+          </span>
+        </div>
+        {isEditing && (
+          <div className="exercise-card__tools">
+            <Button icon={<EditOutlined />} onClick={onEdit}>
+              Редагувати
+            </Button>
+            <Button danger icon={<DeleteOutlined />} onClick={onDelete} aria-label="Видалити завдання" />
+          </div>
+        )}
+      </header>
+
+      {exercise.Description && <p className="exercise-card__description">{exercise.Description}</p>}
+
+      <ol className="exercise-questions">
+        {exercise.Questions.map((question, index) => {
+          const questionResult = resultsById.get(question.Id);
+          return (
+            <li key={question.Id} className="exercise-question">
+              <div className="exercise-question__head">
+                <span className="exercise-question__number">{index + 1}</span>
+                <p className="exercise-question__text">{question.Text}</p>
+                {questionResult && questionResult.Status !== "NotChecked" ? (
+                  <span className={`exercise-status exercise-status--${questionResult.Status.toLowerCase()}`}>
+                    {questionResult.Status === "Correct" ? <CheckCircleFilled /> : <CloseCircleFilled />}
+                    {questionResult.EarnedPoints}/{questionResult.MaxPoints}
+                  </span>
+                ) : (
+                  <span className="exercise-question__points">{question.Points} б.</span>
+                )}
+              </div>
+              {question.Type === "MultipleChoice" && !result && (
+                <span className="exercise-hint">Можна обрати кілька варіантів</span>
+              )}
+              {renderQuestionBody(question)}
+            </li>
+          );
+        })}
+      </ol>
+
+      <footer className="exercise-card__footer">
+        {result ? (
+          <>
+            <div className="exercise-score" role="status">
+              <span className="exercise-score__value">
+                {result.Score} з {result.MaxScore}
+              </span>
+              <span className="exercise-score__label">
+                {result.Score === result.MaxScore ? "Чудово, усе правильно!" : "Перегляньте помилки й спробуйте ще раз."}
+              </span>
+            </div>
+            <Button size="large" icon={<ReloadOutlined />} onClick={retry}>
+              Спробувати ще раз
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="exercise-card__progress">
+              Відповідей: {answeredCount} з {exercise.Questions.length}
+            </span>
+            <Button type="primary" size="large" loading={isChecking} disabled={answeredCount === 0} onClick={check}>
+              Перевірити
+            </Button>
+          </>
+        )}
+      </footer>
+    </section>
+  );
+};
+
+export default ExerciseCard;

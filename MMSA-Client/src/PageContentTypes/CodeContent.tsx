@@ -1,27 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover } from "antd";
 import { CheckOutlined, CopyOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import hljs from "highlight.js/lib/core";
-import csharp from "highlight.js/lib/languages/csharp";
-import cpp from "highlight.js/lib/languages/cpp";
-import delphi from "highlight.js/lib/languages/delphi";
-import python from "highlight.js/lib/languages/python";
 import "highlight.js/styles/atom-one-dark.css";
-
-hljs.registerLanguage("csharp", csharp);
-hljs.registerLanguage("cpp", cpp);
-hljs.registerLanguage("pascal", delphi);
-hljs.registerLanguage("python", python);
-
-const LANGUAGE_LABELS: Record<string, string> = {
-  csharp: "C#",
-  cpp: "C++",
-  pascal: "Pascal",
-  python: "Python",
-};
-
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+import { useTable } from "../Store";
+import { ensureHighlightLanguage, highlightCode, isHighlightReady } from "../course/highlight";
 
 type Props = {
   code: string;
@@ -34,15 +16,31 @@ const CodeContent = ({ code, language, showHeader = true, topics = [] }: Props) 
   const [isCopied, setIsCopied] = useState(false);
   const resetTimer = useRef<number>();
 
-  const highlighted = useMemo(() => {
-    try {
-      return hljs.getLanguage(language)
-        ? hljs.highlight(code, { language }).value
-        : hljs.highlightAuto(code).value;
-    } catch {
-      return escapeHtml(code);
+  const [state] = useTable();
+  const languageInfo = state.languages.find((item) => item.Code === language);
+  const highlightName = languageInfo?.HighlightLanguage ?? language;
+  const [isReady, setIsReady] = useState(() => isHighlightReady(highlightName));
+
+  useEffect(() => {
+    if (isHighlightReady(highlightName)) {
+      setIsReady(true);
+      return;
     }
-  }, [code, language]);
+    let isCancelled = false;
+    setIsReady(false);
+    ensureHighlightLanguage(highlightName).then(() => {
+      if (!isCancelled) setIsReady(true);
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [highlightName]);
+
+  const highlighted = useMemo(
+    () => highlightCode(code, highlightName),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [code, highlightName, isReady]
+  );
 
   useEffect(() => () => window.clearTimeout(resetTimer.current), []);
 
@@ -61,7 +59,7 @@ const CodeContent = ({ code, language, showHeader = true, topics = [] }: Props) 
     <figure className="code-block">
       {showHeader && (
         <figcaption className="code-block__bar">
-          <span>{LANGUAGE_LABELS[language] ?? language}</span>
+          <span>{languageInfo?.Name ?? language}</span>
           <div className="code-block__actions">
             {topics.length > 0 && (
               <Popover

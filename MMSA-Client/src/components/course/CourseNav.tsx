@@ -5,14 +5,16 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Page } from "../../models/Page";
 import { SubPage } from "../../models/SubPages";
-import { Topic, topicPath } from "../../course/courseUtils";
-import { useAuth } from "../../auth/AuthContext";
+import { coursePath, Topic, topicPath } from "../../course/courseUtils";
+import { useCanEditCourse } from "../../course/useCourse";
 import { useTable } from "../../Store";
 import MainService from "../../services/mainService";
 import notification from "../../notification/notificationMessage";
 import NameModal from "./NameModal";
 
 type Props = {
+  courseId: number;
+  courseSlug: string;
   menu: Page[];
   activeTopic?: Topic;
   onNavigate?: () => void;
@@ -43,9 +45,9 @@ const topicActions: MenuProps["items"] = [
   { key: "delete", label: "Видалити тему", icon: <DeleteOutlined />, danger: true },
 ];
 
-const CourseNav = ({ menu, activeTopic, onNavigate }: Props) => {
+const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Props) => {
   const [state, actions] = useTable();
-  const { canEdit } = useAuth();
+  const canEdit = useCanEditCourse();
   const navigate = useNavigate();
   const api = useMemo(() => new MainService(), []);
   const [modal, contextHolder] = Modal.useModal();
@@ -79,19 +81,20 @@ const CourseNav = ({ menu, activeTopic, onNavigate }: Props) => {
       let redirectTo: string | undefined;
 
       if (nameDialog.kind === "addSection") {
-        await api.CreatePage(name);
+        await api.CreatePage(courseId, name);
       } else if (nameDialog.kind === "addTopic") {
-        await api.CreateSubPage(nameDialog.page.PageName, name);
+        await api.CreateSubPage(nameDialog.page.Id, name);
         setExpanded((previous) => new Set(previous).add(nameDialog.page.Id));
       } else {
         const { page, subPage } = nameDialog;
-        await api.UpdateMenuItem(subPage?.Name ?? page.PageName, name);
+        if (subPage) await api.RenameSubPage(subPage.Id, name);
+        else await api.RenamePage(page.Id, name);
 
         if (activeTopic && activeTopic.page.Id === page.Id) {
           if (!subPage) {
-            redirectTo = topicPath({ ...page, PageName: name }, activeTopic.subPage);
+            redirectTo = topicPath(courseSlug, { ...page, PageName: name }, activeTopic.subPage);
           } else if (activeTopic.subPage?.Id === subPage.Id) {
-            redirectTo = topicPath(page, { ...subPage, Name: name });
+            redirectTo = topicPath(courseSlug, page, { ...subPage, Name: name });
           }
         }
       }
@@ -116,10 +119,11 @@ const CourseNav = ({ menu, activeTopic, onNavigate }: Props) => {
       cancelText: "Скасувати",
       onOk: async () => {
         try {
-          await api.DeleteMenuItem(title);
+          if (subPage) await api.DeleteSubPage(subPage.Id);
+          else await api.DeletePage(page.Id);
           const wasActive = activeTopic?.page.Id === page.Id && (!subPage || activeTopic?.subPage?.Id === subPage.Id);
           await actions.loadMenu();
-          if (wasActive) navigate("/");
+          if (wasActive) navigate(coursePath(courseSlug));
           notification("success", "Видалено.");
         } catch (error) {
           notifyError(error);
@@ -179,7 +183,7 @@ const CourseNav = ({ menu, activeTopic, onNavigate }: Props) => {
                 </button>
               ) : (
                 <Link
-                  to={topicPath(page)}
+                  to={topicPath(courseSlug, page)}
                   className={`course-nav__section${isSectionActive ? " is-active" : ""}`}
                   aria-current={isSectionActive ? "page" : undefined}
                   onClick={onNavigate}
@@ -207,7 +211,7 @@ const CourseNav = ({ menu, activeTopic, onNavigate }: Props) => {
                   return (
                     <div key={subPage.Id} className="course-nav__row">
                       <Link
-                        to={topicPath(page, subPage)}
+                        to={topicPath(courseSlug, page, subPage)}
                         className={`course-nav__link${isTopicActive ? " is-active" : ""}`}
                         aria-current={isTopicActive ? "page" : undefined}
                         onClick={onNavigate}
