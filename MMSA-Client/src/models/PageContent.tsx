@@ -6,4 +6,5 @@ export type PageContent = {
     CodeType: string;
     ContentLocation:number;
     PageId: number;
+    Topics?: string[];
   };

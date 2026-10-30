@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckOutlined, CopyOutlined } from "@ant-design/icons";
+import { Popover } from "antd";
+import { CheckOutlined, CopyOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import hljs from "highlight.js/lib/core";
 import csharp from "highlight.js/lib/languages/csharp";
 import cpp from "highlight.js/lib/languages/cpp";
@@ -26,9 +27,10 @@ type Props = {
   code: string;
   language: string;
   showHeader?: boolean;
+  topics?: string[];
 };
 
-const CodeContent = ({ code, language, showHeader = true }: Props) => {
+const CodeContent = ({ code, language, showHeader = true, topics = [] }: Props) => {
   const [isCopied, setIsCopied] = useState(false);
   const resetTimer = useRef<number>();
 
@@ -60,10 +62,31 @@ const CodeContent = ({ code, language, showHeader = true }: Props) => {
       {showHeader && (
         <figcaption className="code-block__bar">
           <span>{LANGUAGE_LABELS[language] ?? language}</span>
-          <button type="button" className="code-block__copy" onClick={copy} aria-live="polite">
-            {isCopied ? <CheckOutlined /> : <CopyOutlined />}
-            {isCopied ? "Скопійовано" : "Копіювати"}
-          </button>
+          <div className="code-block__actions">
+            {topics.length > 0 && (
+              <Popover
+                trigger={["hover", "click"]}
+                placement="bottomRight"
+                title="Щоб зрозуміти цей код, варто знати:"
+                content={
+                  <ul className="topics-popover">
+                    {topics.map((topic) => (
+                      <li key={topic}>{topic}</li>
+                    ))}
+                  </ul>
+                }
+              >
+                <button type="button" className="code-block__copy" aria-label="Які теми потрібно знати для цього коду">
+                  <InfoCircleOutlined />
+                  <span className="code-block__label">Теми · {topics.length}</span>
+                </button>
+              </Popover>
+            )}
+            <button type="button" className="code-block__copy" onClick={copy} aria-live="polite">
+              {isCopied ? <CheckOutlined /> : <CopyOutlined />}
+              <span className="code-block__label">{isCopied ? "Скопійовано" : "Копіювати"}</span>
+            </button>
+          </div>
         </figcaption>
       )}
       <pre>

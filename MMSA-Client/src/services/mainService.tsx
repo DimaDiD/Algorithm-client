@@ -42,4 +42,8 @@ export default class MainService {
   UpdatePageContent = async (pageContent: PageContent) => {
     return (await Api.put(`PageContent/UpdatePageContent`, pageContent))
   };
+
+  GetProgrammingTopics = async (): Promise<string[]> => {
+    return (await Api.get(`PageContent/GetProgrammingTopics`)).data;
+  };
 }

@@ -794,6 +794,12 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: opacity 0.15s;
+}
+
+.topic-content.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .prose {
@@ -1011,6 +1017,23 @@ a:hover {
   color: #FFFFFF;
 }
 
+.code-block__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topics-popover {
+  margin: 0;
+  padding-left: 18px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .code-block pre {
   margin: 0;
   padding: 20px 24px;
@@ -1214,5 +1237,15 @@ a:hover {
 
   .prose {
     font-size: 17px;
+  }
+
+  .code-block__label {
+    display: none;
+  }
+
+  .code-block__copy {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
   }
 }

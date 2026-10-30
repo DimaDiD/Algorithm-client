@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Skeleton } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import axios from "axios";
@@ -10,6 +10,7 @@ import notification from "../../notification/notificationMessage";
 import CodeContent from "../../PageContentTypes/CodeContent";
 import TextContent from "../../PageContentTypes/TextContent";
 import ContentEditorModal, { ContentFormValues } from "./ContentEditorModal";
+import { LANGUAGE_OPTIONS } from "./LanguageSwitch";
 
 type Props = {
   pageId: number;
@@ -51,35 +52,61 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
   const { canEdit } = useAuth();
   const [modal, contextHolder] = Modal.useModal();
   const [blocks, setBlocks] = useState<PageContent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const cache = useRef(new Map<string, PageContent[]>());
   const [editor, setEditor] = useState<EditorState | null>(null);
 
   const isEditing = canEdit && state.isEditMode;
   const codeOption = state.codeOption;
 
+  const fetchContent = useCallback(
+    async (language: string): Promise<PageContent[]> => {
+      const content: PageContent[] = await api.GetPageContentByMenuStatus(pageId, language, subPageId);
+      cache.current.set(language, content);
+      return content;
+    },
+    [api, pageId, subPageId]
+  );
+
   const load = useCallback(async () => {
-    const content: PageContent[] = await api.GetPageContentByMenuStatus(pageId, codeOption, subPageId);
-    setBlocks(content);
-  }, [api, pageId, subPageId, codeOption]);
+    cache.current.clear();
+    setBlocks(await fetchContent(codeOption));
+  }, [fetchContent, codeOption]);
 
   useEffect(() => {
+    const cached = cache.current.get(codeOption);
+    if (cached) {
+      setBlocks(cached);
+      return;
+    }
+
     let isCancelled = false;
-    setIsLoading(true);
-    api
-      .GetPageContentByMenuStatus(pageId, codeOption, subPageId)
-      .then((content: PageContent[]) => {
+    setIsRefreshing(true);
+    fetchContent(codeOption)
+      .then((content) => {
         if (!isCancelled) setBlocks(content);
       })
       .catch(() => {
         if (!isCancelled) setBlocks([]);
       })
       .finally(() => {
-        if (!isCancelled) setIsLoading(false);
+        if (!isCancelled) {
+          setIsRefreshing(false);
+          setHasLoaded(true);
+        }
       });
     return () => {
       isCancelled = true;
     };
-  }, [api, pageId, subPageId, codeOption]);
+  }, [fetchContent, codeOption]);
+
+  useEffect(() => {
+    if (!hasLoaded) return;
+    LANGUAGE_OPTIONS.map((option) => option.value)
+      .filter((language) => !cache.current.has(language))
+      .forEach((language) => fetchContent(language).catch(() => undefined));
+  }, [hasLoaded, fetchContent]);
 
   const openAdd = (position: number, type: ContentFormValues["Type"]) =>
     setEditor({
@@ -95,6 +122,7 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
       initialValues: {
         Type: block.TextType === "Code" ? "Code" : "Text",
         CodeType: block.CodeType,
+        Topics: block.Topics ?? [],
         Text: block.Text,
       },
     });
@@ -110,6 +138,7 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
           SubPageId: subPageId,
           TextType: values.Type,
           CodeType: values.CodeType,
+          Topics: values.Type === "Code" ? values.Topics ?? [] : [],
           ContentLocation: previous ? previous.ContentLocation + 1 : 0,
           PageId: pageId,
         });
@@ -120,6 +149,7 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
           Text: values.Text,
           TextType: values.Type,
           CodeType: values.CodeType,
+          Topics: values.Type === "Code" ? values.Topics ?? [] : [],
         });
         notification("success", "Зміни збережено.");
       }
@@ -149,12 +179,12 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
       },
     });
 
-  if (isLoading) {
+  if (!hasLoaded) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
 
   return (
-    <div className="topic-content">
+    <div className={`topic-content${isRefreshing ? " is-refreshing" : ""}`} aria-busy={isRefreshing}>
       {isEditing && (
         <div className="edit-banner" role="status">
           <EditOutlined />
@@ -187,7 +217,7 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
               </div>
             )}
             {block.TextType === "Code" ? (
-              <CodeContent code={block.Text} language={block.CodeType} />
+              <CodeContent code={block.Text} language={block.CodeType} topics={block.Topics} />
             ) : (
               <TextContent text={block.Text} />
             )}
