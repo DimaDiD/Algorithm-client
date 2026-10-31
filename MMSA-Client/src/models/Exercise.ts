@@ -12,6 +12,7 @@ export type Question = {
   Points: number;
   Order: number;
   CodeLanguage?: string | null;
+  StarterCode?: string | null;
   Options: QuestionOption[];
 };
 
@@ -37,6 +38,7 @@ export type QuestionEdit = {
   CodeLanguage?: string | null;
   ReferenceAnswer?: string | null;
   Rubric?: string | null;
+  StarterCode?: string | null;
   Options: QuestionOptionEdit[];
 };
 
@@ -67,11 +69,18 @@ export type QuestionResult = {
   AcceptedAnswers: string[];
   Feedback?: string | null;
   IsAiReviewed: boolean;
+  Issues?: CodeIssue[];
+};
+
+export type CodeIssue = {
+  Line: number;
+  Message: string;
 };
 
 export type AiStatus = {
   Enabled: boolean;
   MaxAnswerLength: number;
+  MaxCodeLength: number;
 };
 
 export type ExerciseCheckResult = {

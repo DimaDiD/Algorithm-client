@@ -67,7 +67,7 @@ const QuestionBlock = ({ question, index }: { question: QuestionStats; index: nu
       </ul>
     )}
 
-    {question.Type === "OpenAnswer" && question.Answered > 0 && (
+    {(question.Type === "OpenAnswer" || question.Type === "Code") && question.Answered > 0 && (
       <p className="stats-question__summary">
         Повністю: {question.Correct} · частково: {question.Partial} · середній бал AI: {question.AveragePoints ?? 0} з {question.MaxPoints}
       </p>

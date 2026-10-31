@@ -4,6 +4,9 @@ import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from
 import { AiStatus, ExerciseEdit, QuestionType } from "../../models/Exercise";
 import ExerciseService from "../../services/exerciseService";
 import { getErrorMessages } from "../../auth/authApi";
+import { useCourseLanguages } from "../../course/useCourse";
+import { useTable } from "../../Store";
+import CodeEditor from "./LazyCodeEditor";
 
 type OptionValues = {
   Id?: number;
@@ -18,6 +21,8 @@ type QuestionValues = {
   Points?: number;
   ReferenceAnswer?: string;
   Rubric?: string;
+  CodeLanguage?: string;
+  StarterCode?: string;
   Options?: OptionValues[];
 };
 
@@ -41,7 +46,12 @@ const QUESTION_TYPES: { label: string; value: QuestionType }[] = [
   { label: "Кілька правильних варіантів", value: "MultipleChoice" },
   { label: "Коротка відповідь", value: "ShortAnswer" },
   { label: "Розгорнута відповідь (перевіряє AI)", value: "OpenAnswer" },
+  { label: "Код (перевіряє AI)", value: "Code" },
 ];
+
+const isAiType = (type?: QuestionType) => type === "OpenAnswer" || type === "Code";
+
+const trimCode = (value?: string) => (value && value.trim() ? value.replace(/\s+$/, "") : null);
 
 const newQuestion = (): QuestionValues => ({
   Type: "SingleChoice",
@@ -65,6 +75,8 @@ const toFormValues = (exercise?: ExerciseEdit): FormValues =>
           Points: question.Points,
           ReferenceAnswer: question.ReferenceAnswer ?? "",
           Rubric: question.Rubric ?? "",
+          CodeLanguage: question.CodeLanguage ?? undefined,
+          StarterCode: question.StarterCode ?? "",
           Options: question.Options.map((option) => ({ Id: option.Id, Text: option.Text, IsCorrect: option.IsCorrect })),
         })),
       }
@@ -83,6 +95,18 @@ const QuestionFields = ({ name, index, total, onMove, onRemove }: QuestionFields
   const type: QuestionType | undefined = Form.useWatch(["Questions", name, "Type"], form);
   const isShortAnswer = type === "ShortAnswer";
   const isOpenAnswer = type === "OpenAnswer";
+  const isCode = type === "Code";
+  const [state] = useTable();
+  const courseLanguages = useCourseLanguages();
+  const codeLanguage: string | undefined = Form.useWatch(["Questions", name, "CodeLanguage"], form);
+  const highlightLanguage =
+    state.languages.find((language) => language.Code === codeLanguage)?.HighlightLanguage ?? "plaintext";
+
+  useEffect(() => {
+    if (isCode && !codeLanguage && courseLanguages.length > 0) {
+      form.setFieldValue(["Questions", name, "CodeLanguage"], courseLanguages[0].Code);
+    }
+  }, [isCode, codeLanguage, courseLanguages, form, name]);
 
   return (
     <div className="question-editor">
@@ -135,7 +159,44 @@ const QuestionFields = ({ name, index, total, onMove, onRemove }: QuestionFields
         </div>
       )}
 
-      {!isOpenAnswer && (
+      {isCode && (
+        <div className="question-editor__ai">
+          <Form.Item
+            name={[name, "CodeLanguage"]}
+            label="Мова програмування"
+            extra="Лише мови цього курсу."
+            rules={[{ required: true, message: "Оберіть мову" }]}
+          >
+            <Select
+              options={courseLanguages.map((language) => ({ label: language.Name, value: language.Code }))}
+              style={{ maxWidth: 260 }}
+            />
+          </Form.Item>
+          <Form.Item
+            name={[name, "StarterCode"]}
+            label="Заготовка коду (необов'язково)"
+            extra="З неї учень почне: наприклад, оголошення змінних або сигнатура методу."
+          >
+            <CodeEditor highlightLanguage={highlightLanguage} minLines={4} maxLength={4000} ariaLabel="Заготовка коду" />
+          </Form.Item>
+          <Form.Item
+            name={[name, "ReferenceAnswer"]}
+            label="Еталонне рішення"
+            extra="Учні його не бачать. Інший правильний підхід AI теж зарахує."
+          >
+            <CodeEditor highlightLanguage={highlightLanguage} minLines={6} maxLength={4000} ariaLabel="Еталонне рішення" />
+          </Form.Item>
+          <Form.Item
+            name={[name, "Rubric"]}
+            label="Критерії оцінювання"
+            extra="Наприклад: «2 бали — правильний алгоритм; 1 бал — обробка n = 1; 1 бал — зрозумілі імена змінних»."
+          >
+            <Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} maxLength={4000} />
+          </Form.Item>
+        </div>
+      )}
+
+      {!isAiType(type) && (
         <Form.List name={[name, "Options"]}>
           {(fields, { add, remove }) => (
             <div className="question-editor__options">
@@ -187,7 +248,7 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
   const [isSaving, setIsSaving] = useState(false);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const questions: QuestionValues[] | undefined = Form.useWatch("Questions", form);
-  const hasOpenAnswers = (questions ?? []).some((question) => question?.Type === "OpenAnswer");
+  const hasOpenAnswers = (questions ?? []).some((question) => isAiType(question?.Type));
 
   useEffect(() => {
     if (!open) return;
@@ -217,10 +278,16 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
         Type: question.Type,
         Text: question.Text ?? "",
         Points: question.Points ?? 1,
-        CodeLanguage: null,
-        ReferenceAnswer: question.Type === "OpenAnswer" ? question.ReferenceAnswer?.trim() || null : null,
-        Rubric: question.Type === "OpenAnswer" ? question.Rubric?.trim() || null : null,
-        Options: (question.Type === "OpenAnswer" ? [] : question.Options ?? []).map((option) => ({
+        CodeLanguage: question.Type === "Code" ? question.CodeLanguage ?? null : null,
+        StarterCode: question.Type === "Code" ? trimCode(question.StarterCode) : null,
+        ReferenceAnswer:
+          question.Type === "Code"
+            ? trimCode(question.ReferenceAnswer)
+            : question.Type === "OpenAnswer"
+              ? question.ReferenceAnswer?.trim() || null
+              : null,
+        Rubric: isAiType(question.Type) ? question.Rubric?.trim() || null : null,
+        Options: (isAiType(question.Type) ? [] : question.Options ?? []).map((option) => ({
           Id: option.Id ?? 0,
           Text: option.Text ?? "",
           IsCorrect: question.Type === "ShortAnswer" || !!option.IsCorrect,
@@ -287,7 +354,7 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
             showIcon
             style={{ marginTop: 16 }}
             message="AI-перевірка вимкнена на сервері"
-            description="Розгорнуті відповіді учнів не будуть оцінені, доки адміністратор не налаштує ключ Claude API."
+            description="Розгорнуті відповіді й код учнів не будуть оцінені, доки адміністратор не налаштує ключ Claude API."
           />
         )}
 

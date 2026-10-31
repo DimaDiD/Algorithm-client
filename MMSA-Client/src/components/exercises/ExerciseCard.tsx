@@ -20,6 +20,8 @@ import {
 } from "../../models/Exercise";
 import { pluralize } from "../../course/courseUtils";
 import ExerciseService from "../../services/exerciseService";
+import { useTable } from "../../Store";
+import CodeEditor from "./LazyCodeEditor";
 import notification from "../../notification/notificationMessage";
 import { getErrorMessages } from "../../auth/authApi";
 
@@ -42,11 +44,22 @@ type Props = {
 const EMPTY_ANSWER: AnswerState = { selected: [], text: "" };
 
 const DEFAULT_OPEN_ANSWER_LENGTH = 2000;
+const DEFAULT_CODE_LENGTH = 4000;
 
-const isTextQuestion = (question: Question) => question.Type === "ShortAnswer" || question.Type === "OpenAnswer";
+const isTextQuestion = (question: Question) =>
+  question.Type === "ShortAnswer" || question.Type === "OpenAnswer" || question.Type === "Code";
 
-const isAnswered = (question: Question, answer?: AnswerState) =>
-  !!answer && (isTextQuestion(question) ? answer.text.trim().length > 0 : answer.selected.length > 0);
+const isAiQuestion = (question: Question) => question.Type === "OpenAnswer" || question.Type === "Code";
+
+const initialAnswer = (question: Question): AnswerState =>
+  question.Type === "Code" ? { selected: [], text: question.StarterCode ?? "" } : EMPTY_ANSWER;
+
+const isAnswered = (question: Question, answer?: AnswerState) => {
+  if (!answer) return false;
+  if (!isTextQuestion(question)) return answer.selected.length > 0;
+  const text = answer.text.trim();
+  return text.length > 0 && (question.Type !== "Code" || text !== (question.StarterCode ?? "").trim());
+};
 
 const STATUS_ICONS = {
   Correct: <CheckCircleFilled />,
@@ -65,32 +78,35 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [result, setResult] = useState<ExerciseCheckResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
-  const [openAnswerLength, setOpenAnswerLength] = useState(DEFAULT_OPEN_ANSWER_LENGTH);
-  const hasOpenAnswers = exercise.Questions.some((question) => question.Type === "OpenAnswer");
+  const [state] = useTable();
+  const [limits, setLimits] = useState({ answer: DEFAULT_OPEN_ANSWER_LENGTH, code: DEFAULT_CODE_LENGTH });
+  const hasAiQuestions = exercise.Questions.some(isAiQuestion);
 
   useEffect(() => {
-    if (!hasOpenAnswers) return;
+    if (!hasAiQuestions) return;
     ExerciseService.getAiStatus()
-      .then((status) => setOpenAnswerLength(status.MaxAnswerLength))
+      .then((status) => setLimits({ answer: status.MaxAnswerLength, code: status.MaxCodeLength || DEFAULT_CODE_LENGTH }))
       .catch(() => undefined);
-  }, [hasOpenAnswers]);
+  }, [hasAiQuestions]);
+
+  const getAnswer = (question: Question) => answers[question.Id] ?? initialAnswer(question);
 
   const totalPoints = useMemo(() => exercise.Questions.reduce((sum, q) => sum + q.Points, 0), [exercise]);
-  const answeredCount = exercise.Questions.filter((q) => isAnswered(q, answers[q.Id])).length;
+  const answeredCount = exercise.Questions.filter((q) => isAnswered(q, getAnswer(q))).length;
   const resultsById = useMemo(
     () => new Map((result?.Questions ?? []).map((item) => [item.QuestionId, item])),
     [result]
   );
 
-  const setAnswer = (questionId: number, patch: Partial<AnswerState>) =>
+  const setAnswer = (question: Question, patch: Partial<AnswerState>) =>
     setAnswers((previous) => ({
       ...previous,
-      [questionId]: { ...(previous[questionId] ?? EMPTY_ANSWER), ...patch },
+      [question.Id]: { ...(previous[question.Id] ?? initialAnswer(question)), ...patch },
     }));
 
   const check = async () => {
     const payload: QuestionAnswer[] = exercise.Questions.map((question) => {
-      const answer = answers[question.Id] ?? EMPTY_ANSWER;
+      const answer = getAnswer(question);
       return { QuestionId: question.Id, SelectedOptionIds: answer.selected, Text: answer.text };
     });
 
@@ -108,11 +124,41 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
 
   const retry = () => {
     setResult(null);
-    setAnswers({});
+    setAnswers((previous) =>
+      Object.fromEntries(
+        exercise.Questions.filter((question) => question.Type === "Code" && previous[question.Id]).map((question) => [
+          question.Id,
+          previous[question.Id],
+        ])
+      )
+    );
   };
 
+  const renderFeedback = (questionResult: QuestionResult | undefined, note: string) =>
+    questionResult?.Feedback ? (
+      <div className={`exercise-feedback${questionResult.IsAiReviewed ? "" : " exercise-feedback--muted"}`} role="status">
+        {questionResult.IsAiReviewed && (
+          <span className="exercise-feedback__title">
+            <RobotOutlined /> Відгук AI
+          </span>
+        )}
+        <p className="exercise-feedback__text">{questionResult.Feedback}</p>
+        {(questionResult.Issues ?? []).length > 0 && (
+          <ul className="exercise-issues">
+            {(questionResult.Issues ?? []).map((issue) => (
+              <li key={`${issue.Line}-${issue.Message}`}>
+                <span className="exercise-issues__line">Рядок {issue.Line}</span>
+                <span>{issue.Message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {questionResult.IsAiReviewed && <span className="exercise-feedback__note">{note}</span>}
+      </div>
+    ) : null;
+
   const renderQuestionBody = (question: Question) => {
-    const answer = answers[question.Id] ?? EMPTY_ANSWER;
+    const answer = getAnswer(question);
     const questionResult = resultsById.get(question.Id);
     const isLocked = result !== null;
 
@@ -122,7 +168,7 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
           className="exercise-options"
           value={answer.selected[0]}
           disabled={isLocked}
-          onChange={(event) => setAnswer(question.Id, { selected: [event.target.value] })}
+          onChange={(event) => setAnswer(question, { selected: [event.target.value] })}
         >
           {question.Options.map((option) => (
             <Radio key={option.Id} value={option.Id} className={optionClass(option.Id, answer, questionResult)}>
@@ -139,7 +185,7 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
           className="exercise-options"
           value={answer.selected}
           disabled={isLocked}
-          onChange={(values) => setAnswer(question.Id, { selected: values as number[] })}
+          onChange={(values) => setAnswer(question, { selected: values as number[] })}
         >
           {question.Options.map((option) => (
             <Checkbox key={option.Id} value={option.Id} className={optionClass(option.Id, answer, questionResult)}>
@@ -160,7 +206,7 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
             disabled={isLocked}
             maxLength={500}
             status={questionResult?.Status === "Incorrect" ? "error" : undefined}
-            onChange={(event) => setAnswer(question.Id, { text: event.target.value })}
+            onChange={(event) => setAnswer(question, { text: event.target.value })}
             onPressEnter={() => !isLocked && check()}
           />
           {questionResult?.Status === "Incorrect" && questionResult.AcceptedAnswers.length > 0 && (
@@ -177,23 +223,40 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
             placeholder="Напишіть відповідь своїми словами"
             value={answer.text}
             disabled={isLocked}
-            maxLength={openAnswerLength}
+            maxLength={limits.answer}
             showCount
             autoSize={{ minRows: 3, maxRows: 12 }}
-            onChange={(event) => setAnswer(question.Id, { text: event.target.value })}
+            onChange={(event) => setAnswer(question, { text: event.target.value })}
           />
-          {questionResult?.Feedback && (
-            <div className={`exercise-feedback${questionResult.IsAiReviewed ? "" : " exercise-feedback--muted"}`} role="status">
-              {questionResult.IsAiReviewed && (
-                <span className="exercise-feedback__title">
-                  <RobotOutlined /> Відгук AI
-                </span>
-              )}
-              <p className="exercise-feedback__text">{questionResult.Feedback}</p>
-              {questionResult.IsAiReviewed && (
-                <span className="exercise-feedback__note">Оцінка AI рекомендаційна — орієнтуйтеся на пояснення, а не лише на бали.</span>
-              )}
-            </div>
+          {renderFeedback(questionResult, "Оцінка AI рекомендаційна — орієнтуйтеся на пояснення, а не лише на бали.")}
+        </div>
+      );
+    }
+
+    if (question.Type === "Code") {
+      const language = state.languages.find((item) => item.Code === question.CodeLanguage);
+      return (
+        <div className="exercise-open">
+          <div className="exercise-code__meta">
+            <span className="exercise-code__language">{language?.Name ?? question.CodeLanguage}</span>
+            <span className="exercise-hint">
+              {answer.text.length} / {limits.code} · Tab — відступ, Esc потім Tab — вийти з редактора
+            </span>
+          </div>
+          <CodeEditor
+            value={answer.text}
+            onChange={(text) => setAnswer(question, { text })}
+            highlightLanguage={language?.HighlightLanguage ?? "plaintext"}
+            readOnly={isLocked}
+            markedLines={(questionResult?.Issues ?? []).map((issue) => issue.Line)}
+            maxLength={limits.code}
+            minLines={8}
+            placeholder="Напишіть рішення тут"
+            ariaLabel={`Код відповіді, мова ${language?.Name ?? question.CodeLanguage ?? ""}`}
+          />
+          {renderFeedback(
+            questionResult,
+            "Код не запускався: AI проаналізував його логіку. Оцінка рекомендаційна."
           )}
         </div>
       );
@@ -283,12 +346,12 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
         ) : (
           <>
             <span className="exercise-card__progress">
-              {hasOpenAnswers && isChecking
-                ? "Розгорнуті відповіді перевіряє AI — це може тривати до півхвилини."
+              {hasAiQuestions && isChecking
+                ? "Відповіді перевіряє AI — це може тривати до півхвилини."
                 : `Відповідей: ${answeredCount} з ${exercise.Questions.length}`}
             </span>
             <Button type="primary" size="large" loading={isChecking} disabled={answeredCount === 0} onClick={check}>
-              {isChecking && hasOpenAnswers ? "AI перевіряє…" : "Перевірити"}
+              {isChecking && hasAiQuestions ? "AI перевіряє…" : "Перевірити"}
             </Button>
           </>
         )}
