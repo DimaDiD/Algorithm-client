@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Modal } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
-import { Exercise, ExerciseEdit } from "../../models/Exercise";
+import { Exercise, ExerciseEdit, ExerciseProgress } from "../../models/Exercise";
 import ExerciseService from "../../services/exerciseService";
 import { useCanEditCourse } from "../../course/useCourse";
 import { useTable } from "../../Store";
 import notification from "../../notification/notificationMessage";
 import ExerciseCard from "./ExerciseCard";
 import ExerciseEditorModal from "./ExerciseEditorModal";
+import ExerciseStatsModal from "./ExerciseStatsModal";
 
 type Props = {
   pageId: number;
@@ -26,6 +27,8 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [editor, setEditor] = useState<EditorState>({ open: false });
   const [version, setVersion] = useState(0);
+  const [progress, setProgress] = useState<Record<number, ExerciseProgress>>({});
+  const [statsFor, setStatsFor] = useState<Exercise | null>(null);
 
   const isEditing = canEdit && state.isEditMode;
 
@@ -38,9 +41,22 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
     }
   }, [pageId, subPageId]);
 
+  const loadProgress = useCallback(async () => {
+    try {
+      const items = await ExerciseService.getProgress(pageId, subPageId);
+      setProgress(Object.fromEntries(items.map((item) => [item.ExerciseId, item])));
+    } catch {
+      setProgress({});
+    }
+  }, [pageId, subPageId]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!canEdit) loadProgress();
+  }, [canEdit, loadProgress]);
 
   const openEditor = async (exerciseId?: number) => {
     if (exerciseId === undefined) {
@@ -102,8 +118,14 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
           key={`${exercise.Id}-${version}`}
           exercise={exercise}
           isEditing={isEditing}
+          isCourseEditor={canEdit}
+          progress={canEdit ? undefined : progress[exercise.Id]}
           onEdit={() => openEditor(exercise.Id)}
           onDelete={() => confirmDelete(exercise)}
+          onStats={() => setStatsFor(exercise)}
+          onChecked={() => {
+            if (!canEdit) loadProgress();
+          }}
         />
       ))}
 
@@ -115,6 +137,7 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
         onCancel={() => setEditor({ open: false })}
         onSaved={handleSaved}
       />
+      <ExerciseStatsModal exercise={statsFor} onClose={() => setStatsFor(null)} />
       {contextHolder}
     </section>
   );

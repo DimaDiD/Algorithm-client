@@ -72,3 +72,47 @@ export type ExerciseCheckResult = {
   MaxScore: number;
   Questions: QuestionResult[];
 };
+
+export type ExerciseProgress = {
+  ExerciseId: number;
+  Attempts: number;
+  BestScore: number;
+  LastScore: number;
+  MaxScore: number;
+  LastSubmittedAtUtc: string;
+};
+
+export type OptionStats = {
+  OptionId: number;
+  Text: string;
+  IsCorrect: boolean;
+  Picks: number;
+};
+
+export type WrongAnswerStats = {
+  Text: string;
+  Count: number;
+};
+
+export type QuestionStats = {
+  QuestionId: number;
+  Type: QuestionType;
+  Text: string;
+  Answered: number;
+  Correct: number;
+  CorrectPercent: number | null;
+  Options: OptionStats[];
+  WrongAnswers: WrongAnswerStats[];
+};
+
+export type ExerciseStats = {
+  ExerciseId: number;
+  Title: string;
+  Attempts: number;
+  Students: number;
+  AveragePercent: number | null;
+  FirstAttemptAveragePercent: number | null;
+  BestAveragePercent: number | null;
+  LastSubmittedAtUtc: string | null;
+  Questions: QuestionStats[];
+};

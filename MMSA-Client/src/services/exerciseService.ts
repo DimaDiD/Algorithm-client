@@ -1,5 +1,13 @@
 import Api from "./api-service";
-import { Exercise, ExerciseCheckResult, ExerciseEdit, QuestionAnswer } from "../models/Exercise";
+import {
+  Exercise,
+  ExerciseCheckResult,
+  ExerciseEdit,
+  ExerciseProgress,
+  ExerciseStats,
+  QuestionAnswer,
+} from "../models/Exercise";
+import { getClientId } from "./clientId";
 
 const ExerciseService = {
   getForTopic: async (pageId: number, subPageId?: number): Promise<Exercise[]> =>
@@ -20,7 +28,12 @@ const ExerciseService = {
   },
 
   check: async (id: number, answers: QuestionAnswer[]): Promise<ExerciseCheckResult> =>
-    (await Api.post(`Exercises/${id}/check`, { Answers: answers })).data,
+    (await Api.post(`Exercises/${id}/check`, { ClientId: getClientId(), Answers: answers })).data,
+
+  getProgress: async (pageId: number, subPageId?: number): Promise<ExerciseProgress[]> =>
+    (await Api.get("Exercises/progress", { pageId, subPageId, clientId: getClientId() })).data,
+
+  getStats: async (id: number): Promise<ExerciseStats> => (await Api.get(`Exercises/${id}/stats`)).data,
 };
 
 export default ExerciseService;

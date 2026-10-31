@@ -1,7 +1,22 @@
 import { useMemo, useState } from "react";
 import { Button, Checkbox, Input, Radio } from "antd";
-import { CheckCircleFilled, CloseCircleFilled, DeleteOutlined, EditOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Exercise, ExerciseCheckResult, Question, QuestionAnswer, QuestionResult } from "../../models/Exercise";
+import {
+  BarChartOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+  DeleteOutlined,
+  EditOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
+import {
+  Exercise,
+  ExerciseCheckResult,
+  ExerciseProgress,
+  Question,
+  QuestionAnswer,
+  QuestionResult,
+} from "../../models/Exercise";
+import { pluralize } from "../../course/courseUtils";
 import ExerciseService from "../../services/exerciseService";
 import notification from "../../notification/notificationMessage";
 
@@ -13,8 +28,12 @@ type AnswerState = {
 type Props = {
   exercise: Exercise;
   isEditing: boolean;
+  isCourseEditor: boolean;
+  progress?: ExerciseProgress;
   onEdit: () => void;
   onDelete: () => void;
+  onStats: () => void;
+  onChecked: () => void;
 };
 
 const EMPTY_ANSWER: AnswerState = { selected: [], text: "" };
@@ -29,7 +48,7 @@ const optionClass = (optionId: number, answer: AnswerState, result?: QuestionRes
   return "exercise-option";
 };
 
-const ExerciseCard = ({ exercise, isEditing, onEdit, onDelete }: Props) => {
+const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, onDelete, onStats, onChecked }: Props) => {
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [result, setResult] = useState<ExerciseCheckResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -56,6 +75,7 @@ const ExerciseCard = ({ exercise, isEditing, onEdit, onDelete }: Props) => {
     setIsChecking(true);
     try {
       setResult(await ExerciseService.check(exercise.Id, payload));
+      onChecked();
     } catch {
       notification("error", "Не вдалося перевірити відповіді. Спробуйте ще раз.");
     } finally {
@@ -138,9 +158,18 @@ const ExerciseCard = ({ exercise, isEditing, onEdit, onDelete }: Props) => {
           <span className="exercise-card__meta">
             {exercise.Questions.length} пит. · {totalPoints} б.
           </span>
+          {progress && (
+            <span className="exercise-progress">
+              Ваш найкращий результат: <strong>{progress.BestScore} з {progress.MaxScore}</strong> ·{" "}
+              {pluralize(progress.Attempts, "спроба", "спроби", "спроб")}
+            </span>
+          )}
         </div>
         {isEditing && (
           <div className="exercise-card__tools">
+            <Button icon={<BarChartOutlined />} onClick={onStats}>
+              Статистика
+            </Button>
             <Button icon={<EditOutlined />} onClick={onEdit}>
               Редагувати
             </Button>
@@ -187,6 +216,9 @@ const ExerciseCard = ({ exercise, isEditing, onEdit, onDelete }: Props) => {
               <span className="exercise-score__label">
                 {result.Score === result.MaxScore ? "Чудово, усе правильно!" : "Перегляньте помилки й спробуйте ще раз."}
               </span>
+              {isCourseEditor && (
+                <span className="exercise-hint">Ви автор курсу — ця спроба не потрапила до статистики.</span>
+              )}
             </div>
             <Button size="large" icon={<ReloadOutlined />} onClick={retry}>
               Спробувати ще раз
