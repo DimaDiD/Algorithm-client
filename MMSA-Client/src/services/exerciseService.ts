@@ -1,5 +1,6 @@
 import Api from "./api-service";
 import {
+  AiStatus,
   Exercise,
   ExerciseCheckResult,
   ExerciseEdit,
@@ -9,7 +10,21 @@ import {
 } from "../models/Exercise";
 import { getClientId } from "./clientId";
 
+let aiStatusRequest: Promise<AiStatus> | null = null;
+
 const ExerciseService = {
+  getAiStatus: (): Promise<AiStatus> => {
+    aiStatusRequest =
+      aiStatusRequest ??
+      Api.get("Exercises/ai-status")
+        .then((response) => response.data as AiStatus)
+        .catch((error) => {
+          aiStatusRequest = null;
+          throw error;
+        });
+    return aiStatusRequest;
+  },
+
   getForTopic: async (pageId: number, subPageId?: number): Promise<Exercise[]> =>
     (await Api.get("Exercises", { pageId, subPageId })).data,
 

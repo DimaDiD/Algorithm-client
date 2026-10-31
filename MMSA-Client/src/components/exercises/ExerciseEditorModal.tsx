@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Checkbox, Form, Input, InputNumber, Modal, Select } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { ExerciseEdit, QuestionType } from "../../models/Exercise";
+import { AiStatus, ExerciseEdit, QuestionType } from "../../models/Exercise";
 import ExerciseService from "../../services/exerciseService";
 import { getErrorMessages } from "../../auth/authApi";
 
@@ -16,6 +16,8 @@ type QuestionValues = {
   Type: QuestionType;
   Text?: string;
   Points?: number;
+  ReferenceAnswer?: string;
+  Rubric?: string;
   Options?: OptionValues[];
 };
 
@@ -38,6 +40,7 @@ const QUESTION_TYPES: { label: string; value: QuestionType }[] = [
   { label: "Один правильний варіант", value: "SingleChoice" },
   { label: "Кілька правильних варіантів", value: "MultipleChoice" },
   { label: "Коротка відповідь", value: "ShortAnswer" },
+  { label: "Розгорнута відповідь (перевіряє AI)", value: "OpenAnswer" },
 ];
 
 const newQuestion = (): QuestionValues => ({
@@ -60,6 +63,8 @@ const toFormValues = (exercise?: ExerciseEdit): FormValues =>
           Type: question.Type,
           Text: question.Text,
           Points: question.Points,
+          ReferenceAnswer: question.ReferenceAnswer ?? "",
+          Rubric: question.Rubric ?? "",
           Options: question.Options.map((option) => ({ Id: option.Id, Text: option.Text, IsCorrect: option.IsCorrect })),
         })),
       }
@@ -77,6 +82,7 @@ const QuestionFields = ({ name, index, total, onMove, onRemove }: QuestionFields
   const form = Form.useFormInstance<FormValues>();
   const type: QuestionType | undefined = Form.useWatch(["Questions", name, "Type"], form);
   const isShortAnswer = type === "ShortAnswer";
+  const isOpenAnswer = type === "OpenAnswer";
 
   return (
     <div className="question-editor">
@@ -110,46 +116,67 @@ const QuestionFields = ({ name, index, total, onMove, onRemove }: QuestionFields
         <Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} maxLength={4000} />
       </Form.Item>
 
-      <Form.List name={[name, "Options"]}>
-        {(fields, { add, remove }) => (
-          <div className="question-editor__options">
-            <span className="question-editor__label">
-              {isShortAnswer ? "Правильні відповіді (регістр і пробіли не враховуються)" : "Варіанти відповіді — позначте правильні"}
-            </span>
-            {fields.map((field) => (
-              <div key={field.key} className="question-editor__option">
-                <Form.Item name={[field.name, "Id"]} hidden>
-                  <Input />
-                </Form.Item>
-                {!isShortAnswer && (
-                  <Form.Item name={[field.name, "IsCorrect"]} valuePropName="checked" noStyle>
-                    <Checkbox aria-label="Правильний варіант" />
+      {isOpenAnswer && (
+        <div className="question-editor__ai">
+          <Form.Item
+            name={[name, "ReferenceAnswer"]}
+            label="Еталонна відповідь"
+            extra="Що має бути у правильній відповіді. Учні її не бачать."
+          >
+            <Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} maxLength={4000} />
+          </Form.Item>
+          <Form.Item
+            name={[name, "Rubric"]}
+            label="Критерії оцінювання"
+            extra="Наприклад: «1 бал — названо умову виходу з циклу; 1 бал — пояснено, навіщо лічильник»."
+          >
+            <Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} maxLength={4000} />
+          </Form.Item>
+        </div>
+      )}
+
+      {!isOpenAnswer && (
+        <Form.List name={[name, "Options"]}>
+          {(fields, { add, remove }) => (
+            <div className="question-editor__options">
+              <span className="question-editor__label">
+                {isShortAnswer ? "Правильні відповіді (регістр і пробіли не враховуються)" : "Варіанти відповіді — позначте правильні"}
+              </span>
+              {fields.map((field) => (
+                <div key={field.key} className="question-editor__option">
+                  <Form.Item name={[field.name, "Id"]} hidden>
+                    <Input />
                   </Form.Item>
-                )}
-                <Form.Item
-                  name={[field.name, "Text"]}
-                  noStyle
-                  rules={[{ required: true, whitespace: true, message: "Варіант не може бути порожнім" }]}
-                >
-                  <Input placeholder={isShortAnswer ? "Правильна відповідь" : `Варіант ${field.name + 1}`} maxLength={1000} />
-                </Form.Item>
-                <Button
-                  type="text"
-                  icon={<DeleteOutlined />}
-                  onClick={() => remove(field.name)}
-                  disabled={fields.length <= 1}
-                  aria-label="Видалити варіант"
-                />
-              </div>
-            ))}
-            {fields.length < 10 && (
-              <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ Text: "", IsCorrect: isShortAnswer })}>
-                {isShortAnswer ? "Ще одна правильна відповідь" : "Додати варіант"}
-              </Button>
-            )}
-          </div>
-        )}
-      </Form.List>
+                  {!isShortAnswer && (
+                    <Form.Item name={[field.name, "IsCorrect"]} valuePropName="checked" noStyle>
+                      <Checkbox aria-label="Правильний варіант" />
+                    </Form.Item>
+                  )}
+                  <Form.Item
+                    name={[field.name, "Text"]}
+                    noStyle
+                    rules={[{ required: true, whitespace: true, message: "Варіант не може бути порожнім" }]}
+                  >
+                    <Input placeholder={isShortAnswer ? "Правильна відповідь" : `Варіант ${field.name + 1}`} maxLength={1000} />
+                  </Form.Item>
+                  <Button
+                    type="text"
+                    icon={<DeleteOutlined />}
+                    onClick={() => remove(field.name)}
+                    disabled={fields.length <= 1}
+                    aria-label="Видалити варіант"
+                  />
+                </div>
+              ))}
+              {fields.length < 10 && (
+                <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ Text: "", IsCorrect: isShortAnswer })}>
+                  {isShortAnswer ? "Ще одна правильна відповідь" : "Додати варіант"}
+                </Button>
+              )}
+            </div>
+          )}
+        </Form.List>
+      )}
     </div>
   );
 };
@@ -158,6 +185,16 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
   const [form] = Form.useForm<FormValues>();
   const [errors, setErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+  const questions: QuestionValues[] | undefined = Form.useWatch("Questions", form);
+  const hasOpenAnswers = (questions ?? []).some((question) => question?.Type === "OpenAnswer");
+
+  useEffect(() => {
+    if (!open) return;
+    ExerciseService.getAiStatus()
+      .then(setAiStatus)
+      .catch(() => setAiStatus(null));
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -181,9 +218,9 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
         Text: question.Text ?? "",
         Points: question.Points ?? 1,
         CodeLanguage: null,
-        ReferenceAnswer: null,
-        Rubric: null,
-        Options: (question.Options ?? []).map((option) => ({
+        ReferenceAnswer: question.Type === "OpenAnswer" ? question.ReferenceAnswer?.trim() || null : null,
+        Rubric: question.Type === "OpenAnswer" ? question.Rubric?.trim() || null : null,
+        Options: (question.Type === "OpenAnswer" ? [] : question.Options ?? []).map((option) => ({
           Id: option.Id ?? 0,
           Text: option.Text ?? "",
           IsCorrect: question.Type === "ShortAnswer" || !!option.IsCorrect,
@@ -243,6 +280,16 @@ const ExerciseEditorModal = ({ open, pageId, subPageId, exercise, onCancel, onSa
             </div>
           )}
         </Form.List>
+
+        {hasOpenAnswers && aiStatus && !aiStatus.Enabled && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 16 }}
+            message="AI-перевірка вимкнена на сервері"
+            description="Розгорнуті відповіді учнів не будуть оцінені, доки адміністратор не налаштує ключ Claude API."
+          />
+        )}
 
         {errors.length > 0 && (
           <Alert

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Input, Radio } from "antd";
 import {
   BarChartOutlined,
@@ -6,7 +6,9 @@ import {
   CloseCircleFilled,
   DeleteOutlined,
   EditOutlined,
+  MinusCircleFilled,
   ReloadOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
 import {
   Exercise,
@@ -19,6 +21,7 @@ import {
 import { pluralize } from "../../course/courseUtils";
 import ExerciseService from "../../services/exerciseService";
 import notification from "../../notification/notificationMessage";
+import { getErrorMessages } from "../../auth/authApi";
 
 type AnswerState = {
   selected: number[];
@@ -38,8 +41,18 @@ type Props = {
 
 const EMPTY_ANSWER: AnswerState = { selected: [], text: "" };
 
+const DEFAULT_OPEN_ANSWER_LENGTH = 2000;
+
+const isTextQuestion = (question: Question) => question.Type === "ShortAnswer" || question.Type === "OpenAnswer";
+
 const isAnswered = (question: Question, answer?: AnswerState) =>
-  !!answer && (question.Type === "ShortAnswer" ? answer.text.trim().length > 0 : answer.selected.length > 0);
+  !!answer && (isTextQuestion(question) ? answer.text.trim().length > 0 : answer.selected.length > 0);
+
+const STATUS_ICONS = {
+  Correct: <CheckCircleFilled />,
+  PartiallyCorrect: <MinusCircleFilled />,
+  Incorrect: <CloseCircleFilled />,
+};
 
 const optionClass = (optionId: number, answer: AnswerState, result?: QuestionResult) => {
   if (!result) return "exercise-option";
@@ -52,6 +65,15 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [result, setResult] = useState<ExerciseCheckResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [openAnswerLength, setOpenAnswerLength] = useState(DEFAULT_OPEN_ANSWER_LENGTH);
+  const hasOpenAnswers = exercise.Questions.some((question) => question.Type === "OpenAnswer");
+
+  useEffect(() => {
+    if (!hasOpenAnswers) return;
+    ExerciseService.getAiStatus()
+      .then((status) => setOpenAnswerLength(status.MaxAnswerLength))
+      .catch(() => undefined);
+  }, [hasOpenAnswers]);
 
   const totalPoints = useMemo(() => exercise.Questions.reduce((sum, q) => sum + q.Points, 0), [exercise]);
   const answeredCount = exercise.Questions.filter((q) => isAnswered(q, answers[q.Id])).length;
@@ -76,8 +98,9 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
     try {
       setResult(await ExerciseService.check(exercise.Id, payload));
       onChecked();
-    } catch {
-      notification("error", "Не вдалося перевірити відповіді. Спробуйте ще раз.");
+    } catch (error) {
+      const messages = getErrorMessages(error);
+      notification("error", messages[0] ?? "Не вдалося перевірити відповіді. Спробуйте ще раз.");
     } finally {
       setIsChecking(false);
     }
@@ -147,6 +170,35 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
       );
     }
 
+    if (question.Type === "OpenAnswer") {
+      return (
+        <div className="exercise-open">
+          <Input.TextArea
+            placeholder="Напишіть відповідь своїми словами"
+            value={answer.text}
+            disabled={isLocked}
+            maxLength={openAnswerLength}
+            showCount
+            autoSize={{ minRows: 3, maxRows: 12 }}
+            onChange={(event) => setAnswer(question.Id, { text: event.target.value })}
+          />
+          {questionResult?.Feedback && (
+            <div className={`exercise-feedback${questionResult.IsAiReviewed ? "" : " exercise-feedback--muted"}`} role="status">
+              {questionResult.IsAiReviewed && (
+                <span className="exercise-feedback__title">
+                  <RobotOutlined /> Відгук AI
+                </span>
+              )}
+              <p className="exercise-feedback__text">{questionResult.Feedback}</p>
+              {questionResult.IsAiReviewed && (
+                <span className="exercise-feedback__note">Оцінка AI рекомендаційна — орієнтуйтеся на пояснення, а не лише на бали.</span>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return <span className="exercise-hint">Цей тип завдання поки не підтримується.</span>;
   };
 
@@ -190,7 +242,7 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
                 <p className="exercise-question__text">{question.Text}</p>
                 {questionResult && questionResult.Status !== "NotChecked" ? (
                   <span className={`exercise-status exercise-status--${questionResult.Status.toLowerCase()}`}>
-                    {questionResult.Status === "Correct" ? <CheckCircleFilled /> : <CloseCircleFilled />}
+                    {STATUS_ICONS[questionResult.Status]}
                     {questionResult.EarnedPoints}/{questionResult.MaxPoints}
                   </span>
                 ) : (
@@ -214,7 +266,11 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
                 {result.Score} з {result.MaxScore}
               </span>
               <span className="exercise-score__label">
-                {result.Score === result.MaxScore ? "Чудово, усе правильно!" : "Перегляньте помилки й спробуйте ще раз."}
+                {result.MaxScore === 0
+                  ? "Цього разу відповіді не вдалося оцінити автоматично."
+                  : result.Score === result.MaxScore
+                    ? "Чудово, усе правильно!"
+                    : "Перегляньте помилки й спробуйте ще раз."}
               </span>
               {isCourseEditor && (
                 <span className="exercise-hint">Ви автор курсу — ця спроба не потрапила до статистики.</span>
@@ -227,10 +283,12 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
         ) : (
           <>
             <span className="exercise-card__progress">
-              Відповідей: {answeredCount} з {exercise.Questions.length}
+              {hasOpenAnswers && isChecking
+                ? "Розгорнуті відповіді перевіряє AI — це може тривати до півхвилини."
+                : `Відповідей: ${answeredCount} з ${exercise.Questions.length}`}
             </span>
             <Button type="primary" size="large" loading={isChecking} disabled={answeredCount === 0} onClick={check}>
-              Перевірити
+              {isChecking && hasOpenAnswers ? "AI перевіряє…" : "Перевірити"}
             </Button>
           </>
         )}

@@ -56,7 +56,7 @@ export type QuestionAnswer = {
   Text?: string;
 };
 
-export type QuestionResultStatus = "Correct" | "Incorrect" | "NotChecked";
+export type QuestionResultStatus = "Correct" | "PartiallyCorrect" | "Incorrect" | "NotChecked";
 
 export type QuestionResult = {
   QuestionId: number;
@@ -65,6 +65,13 @@ export type QuestionResult = {
   MaxPoints: number;
   CorrectOptionIds: number[];
   AcceptedAnswers: string[];
+  Feedback?: string | null;
+  IsAiReviewed: boolean;
+};
+
+export type AiStatus = {
+  Enabled: boolean;
+  MaxAnswerLength: number;
 };
 
 export type ExerciseCheckResult = {
@@ -100,7 +107,10 @@ export type QuestionStats = {
   Text: string;
   Answered: number;
   Correct: number;
+  Partial: number;
   CorrectPercent: number | null;
+  AveragePoints: number | null;
+  MaxPoints: number;
   Options: OptionStats[];
   WrongAnswers: WrongAnswerStats[];
 };

@@ -67,6 +67,12 @@ const QuestionBlock = ({ question, index }: { question: QuestionStats; index: nu
       </ul>
     )}
 
+    {question.Type === "OpenAnswer" && question.Answered > 0 && (
+      <p className="stats-question__summary">
+        Повністю: {question.Correct} · частково: {question.Partial} · середній бал AI: {question.AveragePoints ?? 0} з {question.MaxPoints}
+      </p>
+    )}
+
     {question.Type === "ShortAnswer" && question.Answered > 0 && (
       question.WrongAnswers.length === 0 ? (
         <p className="exercise-hint">Неправильних відповідей немає.</p>
