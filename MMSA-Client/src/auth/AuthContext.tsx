@@ -3,6 +3,7 @@ import { AuthUser, decodeUser } from "./jwt";
 import { tokenStore } from "./tokenStore";
 import { login, logout, refreshAccessToken, register } from "./authApi";
 import { EDITOR_ROLES } from "./roles";
+import { listenToOtherTabs } from "./authSync";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -22,6 +23,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => tokenStore.subscribe((token) => setUser(userFromToken(token))), []);
+
+  useEffect(() => listenToOtherTabs(), []);
 
   useEffect(() => {
     refreshAccessToken().finally(() => setIsInitialized(true));

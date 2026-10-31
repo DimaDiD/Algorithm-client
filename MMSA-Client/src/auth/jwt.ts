@@ -5,7 +5,7 @@ export type AuthUser = {
   roles: string[];
 };
 
-export const decodeUser = (token: string): AuthUser | null => {
+const decodeClaims = (token: string): Record<string, any> | null => {
   try {
     const payload = token.split(".")[1];
 
@@ -19,16 +19,27 @@ export const decodeUser = (token: string): AuthUser | null => {
         .join("")
     );
 
-    const claims = JSON.parse(json);
-    const role = claims.role;
-
-    return {
-      id: claims.sub,
-      email: claims.email,
-      name: claims.name,
-      roles: Array.isArray(role) ? role : role ? [role] : [],
-    };
+    return JSON.parse(json);
   } catch {
     return null;
   }
+};
+
+export const decodeUser = (token: string): AuthUser | null => {
+  const claims = decodeClaims(token);
+  if (!claims) return null;
+
+  const role = claims.role;
+  return {
+    id: claims.sub,
+    email: claims.email,
+    name: claims.name,
+    roles: Array.isArray(role) ? role : role ? [role] : [],
+  };
+};
+
+export const isTokenFresh = (token: string | null, marginSeconds = 30): boolean => {
+  if (!token) return false;
+  const exp = decodeClaims(token)?.exp;
+  return typeof exp === "number" && exp * 1000 - Date.now() > marginSeconds * 1000;
 };

@@ -1,6 +1,8 @@
 import axios from "axios";
 import BASE_URL from "../config";
 import { tokenStore } from "./tokenStore";
+import { isTokenFresh } from "./jwt";
+import { broadcastLogout, broadcastToken, withRefreshLock } from "./authSync";
 
 export type AccessTokenResponse = {
   AccessToken: string;
@@ -20,30 +22,38 @@ const authClient = axios.create({
 export const login = async (email: string, password: string): Promise<void> => {
   const { data } = await authClient.post<AccessTokenResponse>("login", { Email: email, Password: password });
   tokenStore.set(data.AccessToken);
+  broadcastToken(data.AccessToken);
 };
 
 export const register = async (email: string, password: string): Promise<void> => {
   const { data } = await authClient.post<AccessTokenResponse>("register", { Email: email, Password: password });
   tokenStore.set(data.AccessToken);
+  broadcastToken(data.AccessToken);
 };
 
 let refreshPromise: Promise<string | null> | null = null;
 
+const refreshInsideLock = async (staleToken: string | null): Promise<string | null> => {
+  const current = tokenStore.get();
+  if (current && current !== staleToken && isTokenFresh(current)) return current;
+
+  try {
+    const { data } = await authClient.post<AccessTokenResponse>("refresh");
+    tokenStore.set(data.AccessToken);
+    broadcastToken(data.AccessToken);
+    return data.AccessToken;
+  } catch {
+    tokenStore.set(null);
+    return null;
+  }
+};
+
 export const refreshAccessToken = (): Promise<string | null> => {
   if (!refreshPromise) {
-    refreshPromise = authClient
-      .post<AccessTokenResponse>("refresh")
-      .then(({ data }) => {
-        tokenStore.set(data.AccessToken);
-        return data.AccessToken;
-      })
-      .catch(() => {
-        tokenStore.set(null);
-        return null;
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
+    const staleToken = tokenStore.get();
+    refreshPromise = withRefreshLock(() => refreshInsideLock(staleToken)).finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
 };
@@ -53,6 +63,7 @@ export const logout = async (): Promise<void> => {
     await authClient.post("logout");
   } finally {
     tokenStore.set(null);
+    broadcastLogout();
   }
 };
 
