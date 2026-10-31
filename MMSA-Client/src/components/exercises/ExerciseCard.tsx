@@ -9,6 +9,7 @@ import {
   MinusCircleFilled,
   ReloadOutlined,
   RobotOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   Exercise,
@@ -294,6 +295,28 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
       </header>
 
       {exercise.Description && <p className="exercise-card__description">{exercise.Description}</p>}
+
+      {progress?.TeacherReviews && progress.TeacherReviews.length > 0 && (
+        <div className="exercise-teacher" role="note">
+          <span className="exercise-teacher__title">
+            <UserOutlined /> Викладач переглянув ваші відповіді
+          </span>
+          <ul className="exercise-teacher__list">
+            {progress.TeacherReviews.map((review) => {
+              const index = exercise.Questions.findIndex((question) => question.Id === review.QuestionId);
+              return (
+                <li key={review.QuestionId}>
+                  <span>
+                    {index >= 0 ? `Питання ${index + 1}` : "Питання"}: <strong>{review.Points} з {review.MaxPoints}</strong>
+                    {review.IsOverridden ? " (оцінку змінено)" : " (оцінку AI підтверджено)"}
+                  </span>
+                  {review.Comment && <span className="exercise-teacher__comment">«{review.Comment}»</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <ol className="exercise-questions">
         {exercise.Questions.map((question, index) => {

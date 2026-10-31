@@ -6,7 +6,7 @@ import ExerciseService from "../../services/exerciseService";
 import { pluralWord } from "../../course/courseUtils";
 
 type Props = {
-  exercise: Exercise | null;
+  exercise: Pick<Exercise, "Id" | "Title"> | null;
   onClose: () => void;
 };
 

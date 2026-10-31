@@ -96,6 +96,16 @@ export type ExerciseProgress = {
   LastScore: number;
   MaxScore: number;
   LastSubmittedAtUtc: string;
+  TeacherReviews?: TeacherReview[];
+};
+
+export type TeacherReview = {
+  QuestionId: number;
+  Points: number;
+  MaxPoints: number;
+  IsOverridden: boolean;
+  Comment?: string | null;
+  ReviewedAtUtc: string;
 };
 
 export type OptionStats = {

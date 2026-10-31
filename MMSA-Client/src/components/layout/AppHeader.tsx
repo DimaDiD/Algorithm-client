@@ -1,8 +1,9 @@
 import { Switch } from "antd";
-import { CodeOutlined, MenuOutlined } from "@ant-design/icons";
-import { Link } from "react-router-dom";
+import { CodeOutlined, DashboardOutlined, MenuOutlined } from "@ant-design/icons";
+import { Link, useLocation } from "react-router-dom";
 import { useTable } from "../../Store";
 import { coursePath } from "../../course/courseUtils";
+import { useCanEditCourse } from "../../course/useCourse";
 import AuthPanel from "../auth/AuthPanel";
 
 type Props = {
@@ -13,6 +14,11 @@ type Props = {
 
 const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Props) => {
   const [state, actions] = useTable();
+  const canEditCourse = useCanEditCourse();
+  const location = useLocation();
+  const dashboardPath = courseSlug ? `${coursePath(courseSlug)}/dashboard` : null;
+  const showDashboard = !!dashboardPath && canEditCourse && state.course?.Slug === courseSlug;
+  const isDashboardActive = !!dashboardPath && decodeURI(location.pathname) === decodeURI(dashboardPath);
 
   return (
     <header className="app-header">
@@ -36,6 +42,17 @@ const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Pro
         </nav>
 
         <div className="app-header__actions">
+          {showDashboard && dashboardPath && (
+            <Link
+              to={dashboardPath}
+              className={`header-link-button${isDashboardActive ? " is-active" : ""}`}
+              aria-current={isDashboardActive ? "page" : undefined}
+              aria-label="Кабінет викладача"
+            >
+              <DashboardOutlined />
+              <span className="header-button__label">Кабінет викладача</span>
+            </Link>
+          )}
           {showEditToggle && (
             <label className="edit-toggle">
               <span className="edit-toggle__label">Режим редагування</span>
