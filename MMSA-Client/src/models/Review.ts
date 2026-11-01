@@ -7,8 +7,11 @@ export type DashboardExercise = {
   SubPageName?: string | null;
   Attempts: number;
   Students: number;
-  AveragePercent: number | null;
+  MaxScore: number | null;
+  FirstAttemptAverageScore: number | null;
   FirstAttemptAveragePercent: number | null;
+  BestAverageScore: number | null;
+  BestAveragePercent: number | null;
   PendingReviews: number;
 };
 
@@ -17,7 +20,7 @@ export type CourseDashboard = {
   Students: number;
   Attempts: number;
   FirstAttemptAveragePercent: number | null;
-  AveragePercent: number | null;
+  BestAveragePercent: number | null;
   PendingReviews: number;
   LastSubmittedAtUtc: string | null;
   Exercises: DashboardExercise[];

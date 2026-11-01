@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Empty, Pagination, Result, Segmented, Select, Skeleton, Table } from "antd";
+import { Badge, Button, Empty, Pagination, Result, Segmented, Select, Skeleton, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { BarChartOutlined } from "@ant-design/icons";
+import { BarChartOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { Link, useParams } from "react-router-dom";
 import { coursePath, pluralWord } from "../../course/courseUtils";
 import { useCanEditCourse, useLoadCourse } from "../../course/useCourse";
@@ -16,7 +16,29 @@ import ReviewCard from "../../components/dashboard/ReviewCard";
 
 const formatPercent = (value: number | null) => (value === null ? "—" : `${Math.round(value)}%`);
 
+const formatScore = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 1 });
+
 const comparePercent = (a: number | null, b: number | null) => (a ?? Infinity) - (b ?? Infinity);
+
+const ColumnTitle = ({ title, hint }: { title: string; hint: string }) => (
+  <Tooltip title={hint}>
+    <span className="column-title">
+      {title} <QuestionCircleOutlined className="column-title__icon" aria-label={hint} />
+    </span>
+  </Tooltip>
+);
+
+const ScoreCell = ({ score, percent, max }: { score: number | null; percent: number | null; max: number | null }) =>
+  score === null || max === null ? (
+    <>—</>
+  ) : (
+    <div className="score-cell">
+      <span className="score-cell__value">
+        {formatScore(score)} <span className="score-cell__max">з {max}</span>
+      </span>
+      <span className="score-cell__percent">{formatPercent(percent)}</span>
+    </div>
+  );
 
 const FILTERS: { label: string; value: ReviewFilter }[] = [
   { label: "Чекають перегляду", value: "Pending" },
@@ -94,25 +116,53 @@ export const DashboardPage = () => {
           </div>
         ),
       },
-      { title: "Учні", dataIndex: "Students", align: "right", sorter: (a, b) => a.Students - b.Students },
-      { title: "Спроби", dataIndex: "Attempts", align: "right", sorter: (a, b) => a.Attempts - b.Attempts },
       {
-        title: "З першої спроби",
-        dataIndex: "FirstAttemptAveragePercent",
+        title: <ColumnTitle title="Учні" hint="Скільки різних учнів (браузерів) хоча б раз виконали завдання" />,
+        dataIndex: "Students",
+        align: "right",
+        sorter: (a, b) => a.Students - b.Students,
+      },
+      {
+        title: <ColumnTitle title="Спроби" hint="Скільки разів усього натиснули «Перевірити», разом із повторними спробами" />,
+        dataIndex: "Attempts",
+        align: "right",
+        sorter: (a, b) => a.Attempts - b.Attempts,
+      },
+      {
+        title: (
+          <ColumnTitle
+            title="Перша спроба"
+            hint="Середній бал за першу спробу кожного учня — наскільки тему зрозуміли одразу після читання"
+          />
+        ),
+        key: "first",
         align: "right",
         defaultSortOrder: "ascend",
         sorter: (a, b) => comparePercent(a.FirstAttemptAveragePercent, b.FirstAttemptAveragePercent),
-        render: (value: number | null) => formatPercent(value),
+        render: (_, exercise) => (
+          <ScoreCell
+            score={exercise.FirstAttemptAverageScore}
+            percent={exercise.FirstAttemptAveragePercent}
+            max={exercise.MaxScore}
+          />
+        ),
       },
       {
-        title: "Середній",
-        dataIndex: "AveragePercent",
+        title: (
+          <ColumnTitle
+            title="Найкраща спроба"
+            hint="Середній бал за найкращу спробу кожного учня — чого учні досягли після повторних спроб"
+          />
+        ),
+        key: "best",
         align: "right",
-        sorter: (a, b) => comparePercent(a.AveragePercent, b.AveragePercent),
-        render: (value: number | null) => formatPercent(value),
+        sorter: (a, b) => comparePercent(a.BestAveragePercent, b.BestAveragePercent),
+        render: (_, exercise) => (
+          <ScoreCell score={exercise.BestAverageScore} percent={exercise.BestAveragePercent} max={exercise.MaxScore} />
+        ),
       },
       {
-        title: "На перегляді",
+        title: <ColumnTitle title="На перегляді" hint="Відкриті відповіді, оцінку яких ШІ ще чекає вашого підтвердження" />,
         dataIndex: "PendingReviews",
         align: "right",
         sorter: (a, b) => a.PendingReviews - b.PendingReviews,
@@ -198,9 +248,13 @@ export const DashboardPage = () => {
                 <span className="stats-tile__value">{dashboard.Attempts}</span>
                 <span className="stats-tile__label">{pluralWord(dashboard.Attempts, "спроба", "спроби", "спроб")}</span>
               </div>
-              <div className="stats-tile" title="Середній результат першої спроби кожного учня по кожному завданню">
+              <div className="stats-tile" title="Середній результат першої спроби кожного учня по всіх завданнях курсу">
                 <span className="stats-tile__value">{formatPercent(dashboard.FirstAttemptAveragePercent)}</span>
-                <span className="stats-tile__label">з першої спроби</span>
+                <span className="stats-tile__label">перша спроба</span>
+              </div>
+              <div className="stats-tile" title="Середній результат найкращої спроби кожного учня по всіх завданнях курсу">
+                <span className="stats-tile__value">{formatPercent(dashboard.BestAveragePercent)}</span>
+                <span className="stats-tile__label">найкраща спроба</span>
               </div>
               <div className={`stats-tile${dashboard.PendingReviews > 0 ? " stats-tile--attention" : ""}`}>
                 <span className="stats-tile__value">{dashboard.PendingReviews}</span>
@@ -211,7 +265,7 @@ export const DashboardPage = () => {
             <section className="card dashboard__panel">
               <div className="dashboard__panel-head">
                 <h2 className="dashboard__subtitle">Завдання курсу</h2>
-                <span className="exercise-hint">Відсортовано від найслабшого результату з першої спроби</span>
+                <span className="exercise-hint">Відсортовано від найслабшого результату першої спроби. Наведіть на «?», щоб побачити пояснення</span>
               </div>
               <Table
                 rowKey="ExerciseId"
