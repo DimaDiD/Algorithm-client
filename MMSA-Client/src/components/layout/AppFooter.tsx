@@ -9,6 +9,7 @@ const AppFooter = () => (
       </div>
       <nav aria-label="Посилання у футері" style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center" }}>
         <Link to="/#courses">Каталог курсів</Link>
+        <Link to="/about">Про сайт і конфіденційність</Link>
       </nav>
     </div>
   </footer>

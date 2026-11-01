@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Input, Radio } from "antd";
+import { Link } from "react-router-dom";
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -96,12 +97,16 @@ const ExerciseCard = ({
   const [isChecking, setIsChecking] = useState(false);
   const [state] = useTable();
   const [limits, setLimits] = useState({ answer: DEFAULT_OPEN_ANSWER_LENGTH, code: DEFAULT_CODE_LENGTH });
+  const [isAiEnabled, setIsAiEnabled] = useState(false);
   const hasAiQuestions = exercise.Questions.some(isAiQuestion);
 
   useEffect(() => {
     if (!hasAiQuestions) return;
     ExerciseService.getAiStatus()
-      .then((status) => setLimits({ answer: status.MaxAnswerLength, code: status.MaxCodeLength || DEFAULT_CODE_LENGTH }))
+      .then((status) => {
+        setIsAiEnabled(status.Enabled);
+        setLimits({ answer: status.MaxAnswerLength, code: status.MaxCodeLength || DEFAULT_CODE_LENGTH });
+      })
       .catch(() => undefined);
   }, [hasAiQuestions]);
 
@@ -173,6 +178,13 @@ const ExerciseCard = ({
       </div>
     ) : null;
 
+  const aiNotice = isAiEnabled ? (
+    <p className="exercise-ai-notice">
+      <RobotOutlined /> Відповідь перевірить ШІ (Claude). Не пишіть у ній ім'я, контакти чи інші особисті дані.{" "}
+      <Link to="/about#ai">Докладніше</Link>
+    </p>
+  ) : null;
+
   const renderQuestionBody = (question: Question) => {
     const answer = getAnswer(question);
     const questionResult = resultsById.get(question.Id);
@@ -235,6 +247,7 @@ const ExerciseCard = ({
     if (question.Type === "OpenAnswer") {
       return (
         <div className="exercise-open">
+          {!questionResult && aiNotice}
           <Input.TextArea
             placeholder="Напишіть відповідь своїми словами"
             value={answer.text}
@@ -253,6 +266,7 @@ const ExerciseCard = ({
       const language = state.languages.find((item) => item.Code === question.CodeLanguage);
       return (
         <div className="exercise-open">
+          {!questionResult && aiNotice}
           <div className="exercise-code__meta">
             <span className="exercise-code__language">{language?.Name ?? question.CodeLanguage}</span>
             <span className="exercise-hint">

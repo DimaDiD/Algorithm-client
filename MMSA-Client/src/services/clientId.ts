@@ -12,6 +12,15 @@ const createId = (): string => {
 
 let memoryId: string | null = null;
 
+export const resetClientId = (): string => {
+  const created = createId();
+  memoryId = created;
+  try {
+    localStorage.setItem(CLIENT_ID_KEY, created);
+  } catch {}
+  return created;
+};
+
 export const getClientId = (): string => {
   try {
     const stored = localStorage.getItem(CLIENT_ID_KEY);

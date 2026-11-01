@@ -43,6 +43,9 @@ const ExerciseService = {
     await Api.put(`Exercises/${id}/move?direction=${direction}`);
   },
 
+  deleteMyData: async (): Promise<number> =>
+    (await Api.remove("Exercises/my-data", { clientId: getClientId() })).data.deleted,
+
   remove: async (id: number): Promise<void> => {
     await Api.remove(`Exercises/${id}`);
   },

@@ -47,6 +47,16 @@ const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Pro
         </nav>
 
         <div className="app-header__actions">
+          {showEditToggle && (
+            <label className="edit-toggle">
+              <span className="edit-toggle__label">Режим редагування</span>
+              <Switch
+                checked={state.isEditMode}
+                onChange={(checked) => actions.setEditMode(checked)}
+                aria-label="Режим редагування"
+              />
+            </label>
+          )}
           {isAdmin && (
             <Link
               to="/admin/users"
@@ -68,17 +78,7 @@ const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Pro
               <DashboardOutlined />
               <span className="header-button__label">Кабінет викладача</span>
             </Link>
-          )}
-          {showEditToggle && (
-            <label className="edit-toggle">
-              <span className="edit-toggle__label">Режим редагування</span>
-              <Switch
-                checked={state.isEditMode}
-                onChange={(checked) => actions.setEditMode(checked)}
-                aria-label="Режим редагування"
-              />
-            </label>
-          )}
+          )}          
           <AuthPanel />
         </div>
       </div>
