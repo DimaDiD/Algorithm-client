@@ -11,6 +11,7 @@ import notification from "../../notification/notificationMessage";
 import CodeContent from "../../PageContentTypes/CodeContent";
 import TextContent from "../../PageContentTypes/TextContent";
 import ContentEditorModal, { ContentFormValues } from "./ContentEditorModal";
+import { BlockErrorBoundary } from "../common/ErrorFallbacks";
 
 type Props = {
   pageId: number;
@@ -249,11 +250,13 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
                 </button>
               </div>
             )}
-            {block.TextType === "Code" ? (
-              <CodeContent code={block.Text} language={block.CodeType} topics={block.Topics} />
-            ) : (
-              <TextContent text={block.Text} />
-            )}
+            <BlockErrorBoundary resetKey={block}>
+              {block.TextType === "Code" ? (
+                <CodeContent code={block.Text} language={block.CodeType} topics={block.Topics} />
+              ) : (
+                <TextContent text={block.Text} />
+              )}
+            </BlockErrorBoundary>
           </div>
         </Fragment>
       ))}

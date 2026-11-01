@@ -11,6 +11,7 @@ import notification from "../../notification/notificationMessage";
 import ExerciseCard from "./ExerciseCard";
 import ExerciseEditorModal from "./ExerciseEditorModal";
 import ExerciseStatsModal from "./ExerciseStatsModal";
+import { BlockErrorBoundary } from "../common/ErrorFallbacks";
 
 type Props = {
   pageId: number;
@@ -126,21 +127,22 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
       )}
 
       {exercises.map((exercise, index) => (
-        <ExerciseCard
-          key={`${exercise.Id}-${version}`}
-          exercise={exercise}
-          isEditing={isEditing}
-          isCourseEditor={canEdit}
-          progress={canEdit ? undefined : progress[exercise.Id]}
-          onEdit={() => openEditor(exercise.Id)}
-          onDelete={() => confirmDelete(exercise)}
-          onMoveUp={index > 0 ? () => move(exercise, "up") : undefined}
-          onMoveDown={index < exercises.length - 1 ? () => move(exercise, "down") : undefined}
-          onStats={() => setStatsFor(exercise)}
-          onChecked={() => {
-            if (!canEdit) loadProgress();
-          }}
-        />
+        <BlockErrorBoundary key={`${exercise.Id}-${version}`} resetKey={exercise}>
+          <ExerciseCard
+            exercise={exercise}
+            isEditing={isEditing}
+            isCourseEditor={canEdit}
+            progress={canEdit ? undefined : progress[exercise.Id]}
+            onEdit={() => openEditor(exercise.Id)}
+            onDelete={() => confirmDelete(exercise)}
+            onMoveUp={index > 0 ? () => move(exercise, "up") : undefined}
+            onMoveDown={index < exercises.length - 1 ? () => move(exercise, "down") : undefined}
+            onStats={() => setStatsFor(exercise)}
+            onChecked={() => {
+              if (!canEdit) loadProgress();
+            }}
+          />
+        </BlockErrorBoundary>
       ))}
 
       <ExerciseEditorModal
