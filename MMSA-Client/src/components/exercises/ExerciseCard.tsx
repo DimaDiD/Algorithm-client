@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Input, Radio } from "antd";
 import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   BarChartOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
@@ -38,6 +40,8 @@ type Props = {
   progress?: ExerciseProgress;
   onEdit: () => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onStats: () => void;
   onChecked: () => void;
 };
@@ -75,7 +79,18 @@ const optionClass = (optionId: number, answer: AnswerState, result?: QuestionRes
   return "exercise-option";
 };
 
-const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, onDelete, onStats, onChecked }: Props) => {
+const ExerciseCard = ({
+  exercise,
+  isEditing,
+  isCourseEditor,
+  progress,
+  onEdit,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onStats,
+  onChecked,
+}: Props) => {
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [result, setResult] = useState<ExerciseCheckResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -283,6 +298,14 @@ const ExerciseCard = ({ exercise, isEditing, isCourseEditor, progress, onEdit, o
         </div>
         {isEditing && (
           <div className="exercise-card__tools">
+            <Button icon={<ArrowUpOutlined />} disabled={!onMoveUp} onClick={onMoveUp} aria-label="Перемістити завдання вище" title="Вище" />
+            <Button
+              icon={<ArrowDownOutlined />}
+              disabled={!onMoveDown}
+              onClick={onMoveDown}
+              aria-label="Перемістити завдання нижче"
+              title="Нижче"
+            />
             <Button icon={<BarChartOutlined />} onClick={onStats}>
               Статистика
             </Button>

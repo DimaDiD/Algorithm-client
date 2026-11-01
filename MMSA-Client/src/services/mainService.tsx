@@ -1,3 +1,4 @@
+import { MoveDirection } from "../models/MoveDirection";
 import { PageContent } from "../models/PageContent";
 import Api from "./api-service";
 
@@ -55,6 +56,10 @@ export default class MainService {
 
   UpdatePageContent = async (pageContent: PageContent) => {
     return await Api.put(`PageContent/UpdatePageContent`, pageContent);
+  };
+
+  MovePageContent = async (pageContentId: number, direction: MoveDirection, codeStatus: string) => {
+    return await Api.put(withQuery("PageContent/MovePageContent", { pageContentId, direction, codeStatus }));
   };
 
   GetProgrammingTopics = async (): Promise<string[]> => {

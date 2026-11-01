@@ -43,24 +43,25 @@ const STEPS = [
 const sectionsLabel = (count: number) => pluralize(count, "розділ", "розділи", "розділів");
 
 const CourseCard = ({ course }: { course: Course }) => (
-  <Link to={coursePath(course.Slug)} className="card section-card course-card">
+  <Link to={coursePath(course.Slug)} className="card course-card">
     <div className="course-card__top">
-      <span className="section-card__badge" aria-hidden="true">{course.Title.charAt(0).toUpperCase()}</span>
+      <span className="course-card__eyebrow">
+        {course.SectionCount > 0 ? sectionsLabel(course.SectionCount) : "Поки без розділів"}
+      </span>
       {!course.IsPublished && <span className="status-badge">Чернетка</span>}
     </div>
-    <h3 className="section-card__title">{course.Title}</h3>
+    <h3 className="course-card__title">{course.Title}</h3>
     {course.Description && <p className="course-card__description">{course.Description}</p>}
-    {course.Languages.length > 0 && (
+    <div className="course-card__footer">
       <div className="course-card__languages">
         {course.Languages.map((language) => (
           <span key={language.Code} className="language-chip">{language.Name}</span>
         ))}
       </div>
-    )}
-    <p className="section-card__meta">{course.SectionCount > 0 ? sectionsLabel(course.SectionCount) : "Поки без розділів"}</p>
-    <span className="section-card__cta">
-      Відкрити <ArrowRightOutlined />
-    </span>
+      <span className="course-card__cta" aria-hidden="true">
+        <ArrowRightOutlined />
+      </span>
+    </div>
   </Link>
 );
 
@@ -213,17 +214,19 @@ export const CatalogPage = () => {
           <section className="container section">
             <div className="section__head">
               <div>
-                <h2 className="section__title">Мої курси</h2>
+                <div className="section__title-row">
+                  <h2 className="section__title">Мої курси</h2>
+                  <button type="button" className="btn btn--primary btn--small" onClick={() => setIsCreateOpen(true)}>
+                    <PlusOutlined /> Створити курс
+                  </button>
+                </div>
                 <p className="section__lead">Курси, які ви ведете. Чернетки бачите лише ви.</p>
               </div>
-              <div className="section__tools">
-                {mine && mine.length > 0 && (
+              {mine && mine.length > 0 && (
+                <div className="section__tools">
                   <CourseSearch value={mineSearch.query} onChange={mineSearch.setQuery} label="Пошук серед моїх курсів" />
-                )}
-                <button type="button" className="btn btn--primary" onClick={() => setIsCreateOpen(true)}>
-                  <PlusOutlined /> Створити курс
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
             {!mine || !mineSearch.filtered ? (

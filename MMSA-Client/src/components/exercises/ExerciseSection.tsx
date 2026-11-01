@@ -3,6 +3,7 @@ import { Button, Modal } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { Exercise, ExerciseEdit, ExerciseProgress } from "../../models/Exercise";
+import { MoveDirection } from "../../models/MoveDirection";
 import ExerciseService from "../../services/exerciseService";
 import { useCanEditCourse } from "../../course/useCourse";
 import { useTable } from "../../Store";
@@ -90,6 +91,17 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
       },
     });
 
+  const move = async (exercise: Exercise, direction: MoveDirection) => {
+    try {
+      await ExerciseService.move(exercise.Id, direction);
+      await load();
+    } catch (error) {
+      if (!(axios.isAxiosError(error) && HANDLED_STATUSES.includes(error.response?.status ?? 0))) {
+        notification("error", "Не вдалося перемістити завдання.");
+      }
+    }
+  };
+
   const handleSaved = async () => {
     setEditor({ open: false });
     notification("success", "Завдання збережено.");
@@ -113,7 +125,7 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
         <div className="card exercise-empty">До цієї теми ще немає завдань.</div>
       )}
 
-      {exercises.map((exercise) => (
+      {exercises.map((exercise, index) => (
         <ExerciseCard
           key={`${exercise.Id}-${version}`}
           exercise={exercise}
@@ -122,6 +134,8 @@ const ExerciseSection = ({ pageId, subPageId }: Props) => {
           progress={canEdit ? undefined : progress[exercise.Id]}
           onEdit={() => openEditor(exercise.Id)}
           onDelete={() => confirmDelete(exercise)}
+          onMoveUp={index > 0 ? () => move(exercise, "up") : undefined}
+          onMoveDown={index < exercises.length - 1 ? () => move(exercise, "down") : undefined}
           onStats={() => setStatsFor(exercise)}
           onChecked={() => {
             if (!canEdit) loadProgress();

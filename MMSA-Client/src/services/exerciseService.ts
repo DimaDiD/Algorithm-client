@@ -8,6 +8,7 @@ import {
   ExerciseStats,
   QuestionAnswer,
 } from "../models/Exercise";
+import { MoveDirection } from "../models/MoveDirection";
 import { getClientId } from "./clientId";
 
 let aiStatusRequest: Promise<AiStatus> | null = null;
@@ -36,6 +37,10 @@ const ExerciseService = {
 
   update: async (exercise: ExerciseEdit): Promise<void> => {
     await Api.put(`Exercises/${exercise.Id}`, exercise);
+  },
+
+  move: async (id: number, direction: MoveDirection): Promise<void> => {
+    await Api.put(`Exercises/${id}/move?direction=${direction}`);
   },
 
   remove: async (id: number): Promise<void> => {

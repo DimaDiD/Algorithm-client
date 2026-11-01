@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Skeleton } from "antd";
-import { EditOutlined } from "@ant-design/icons";
+import { ArrowDownOutlined, ArrowUpOutlined, EditOutlined } from "@ant-design/icons";
 import axios from "axios";
+import { MoveDirection } from "../../models/MoveDirection";
 import { PageContent } from "../../models/PageContent";
 import { useCanEditCourse, useCodeOption, useCourseLanguages } from "../../course/useCourse";
 import { useTable } from "../../Store";
@@ -164,6 +165,15 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
     }
   };
 
+  const move = async (block: PageContent, direction: MoveDirection) => {
+    try {
+      await api.MovePageContent(block.Id, direction, codeOption);
+      await load();
+    } catch (error) {
+      notifyError(error, "Не вдалося перемістити блок.");
+    }
+  };
+
   const confirmDelete = (block: PageContent) =>
     modal.confirm({
       title: "Видалити блок?",
@@ -207,6 +217,26 @@ const TopicContent = ({ pageId, subPageId }: Props) => {
           <div className={`content-block${isEditing ? " is-editing" : ""}`}>
             {isEditing && (
               <div className="block-toolbar">
+                <button
+                  type="button"
+                  className="block-toolbar__button block-toolbar__button--icon"
+                  disabled={index === 0}
+                  onClick={() => move(block, "up")}
+                  aria-label="Перемістити блок вище"
+                  title="Вище"
+                >
+                  <ArrowUpOutlined />
+                </button>
+                <button
+                  type="button"
+                  className="block-toolbar__button block-toolbar__button--icon"
+                  disabled={index === blocks.length - 1}
+                  onClick={() => move(block, "down")}
+                  aria-label="Перемістити блок нижче"
+                  title="Нижче"
+                >
+                  <ArrowDownOutlined />
+                </button>
                 <button type="button" className="block-toolbar__button" onClick={() => openEdit(block)}>
                   Редагувати
                 </button>
