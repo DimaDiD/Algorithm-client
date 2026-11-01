@@ -33,6 +33,14 @@ export default class MainService {
     return await Api.remove("SubPage/DeleteSubPage", { subPageId });
   };
 
+  ReorderPages = async (courseId: number, pageIds: number[]) => {
+    return await Api.put(withQuery("Page/ReorderPages", { courseId }), pageIds);
+  };
+
+  ReorderSubPages = async (pageId: number, subPageIds: number[]) => {
+    return await Api.put(withQuery("SubPage/ReorderSubPages", { pageId }), subPageIds);
+  };
+
   GetPageContentByMenuStatus = async (pageId: number, codeStatus: string, subPageId?: number) => {
     return (await Api.get(`PageContent/GetPageContentByMenuStatus`, { pageId, codeStatus, subPageId })).data;
   };

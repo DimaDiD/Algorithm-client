@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Skeleton } from "antd";
-import { ArrowRightOutlined, PlusOutlined } from "@ant-design/icons";
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import { Input, Skeleton } from "antd";
+import { ArrowRightOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTable } from "../../Store";
 import { useAuth } from "../../auth/AuthContext";
@@ -64,6 +64,56 @@ const CourseCard = ({ course }: { course: Course }) => (
   </Link>
 );
 
+const normalize = (value: string) => value.trim().toLocaleLowerCase("uk");
+
+const matches = (course: Course, query: string) =>
+  [course.Title, course.Description ?? "", ...course.Languages.map((language) => language.Name)].some((text) =>
+    normalize(text).includes(query)
+  );
+
+const useCourseSearch = (courses: Course[] | null) => {
+  const [query, setQuery] = useState("");
+  const normalized = normalize(query);
+  const filtered = useMemo(
+    () => (courses && normalized ? courses.filter((course) => matches(course, normalized)) : courses),
+    [courses, normalized]
+  );
+  return { query, setQuery, filtered };
+};
+
+type SearchProps = { value: string; onChange: (value: string) => void; label: string };
+
+const CourseSearch = ({ value, onChange, label }: SearchProps) => (
+  <Input
+    className="course-search"
+    allowClear
+    prefix={<SearchOutlined />}
+    placeholder="Назва, опис або мова"
+    aria-label={label}
+    value={value}
+    onChange={(event) => onChange(event.target.value)}
+  />
+);
+
+type CourseListProps = { courses: Course[]; query: string; empty: ReactNode };
+
+const CourseList = ({ courses, query, empty }: CourseListProps) => {
+  if (courses.length > 0) {
+    return (
+      <div className="cards-grid">
+        {courses.map((course) => (
+          <CourseCard key={course.Id} course={course} />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="card empty-state">
+      <p>{query.trim() ? `Нічого не знайдено за запитом «${query.trim()}».` : empty}</p>
+    </div>
+  );
+};
+
 export const CatalogPage = () => {
   const [state] = useTable();
   const { user, canEdit, isInitialized } = useAuth();
@@ -73,6 +123,8 @@ export const CatalogPage = () => {
   const [mine, setMine] = useState<Course[] | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const mineSearch = useCourseSearch(mine);
+  const catalogSearch = useCourseSearch(published);
 
   useEffect(() => {
     document.title = "Основи програмування";
@@ -131,11 +183,6 @@ export const CatalogPage = () => {
               <a href="#courses" className="btn btn--primary">
                 Обрати курс <ArrowRightOutlined />
               </a>
-              {canEdit && (
-                <button type="button" className="btn btn--ghost" onClick={() => setIsCreateOpen(true)}>
-                  <PlusOutlined /> Створити курс
-                </button>
-              )}
             </div>
             <div className="hero__stats">
               <div className="stat">
@@ -169,49 +216,49 @@ export const CatalogPage = () => {
                 <h2 className="section__title">Мої курси</h2>
                 <p className="section__lead">Курси, які ви ведете. Чернетки бачите лише ви.</p>
               </div>
-              <button type="button" className="btn btn--primary" onClick={() => setIsCreateOpen(true)}>
-                <PlusOutlined /> Створити курс
-              </button>
+              <div className="section__tools">
+                {mine && mine.length > 0 && (
+                  <CourseSearch value={mineSearch.query} onChange={mineSearch.setQuery} label="Пошук серед моїх курсів" />
+                )}
+                <button type="button" className="btn btn--primary" onClick={() => setIsCreateOpen(true)}>
+                  <PlusOutlined /> Створити курс
+                </button>
+              </div>
             </div>
 
-            {!mine ? (
+            {!mine || !mineSearch.filtered ? (
               <Skeleton active paragraph={{ rows: 3 }} />
-            ) : mine.length === 0 ? (
-              <div className="card empty-state">
-                <p>У вас ще немає курсів. Створіть перший — він з'явиться в каталозі після публікації.</p>
-              </div>
             ) : (
-              <div className="cards-grid">
-                {mine.map((course) => (
-                  <CourseCard key={course.Id} course={course} />
-                ))}
-              </div>
+              <CourseList
+                courses={mineSearch.filtered}
+                query={mineSearch.query}
+                empty="У вас ще немає курсів. Створіть перший — він з'явиться в каталозі після публікації."
+              />
             )}
           </section>
         )}
 
         <section id="courses" className="container section">
-          <div>
-            <h2 className="section__title">Каталог курсів</h2>
-            <p className="section__lead">Усі опубліковані курси. Читати можна без реєстрації.</p>
+          <div className="section__head">
+            <div>
+              <h2 className="section__title">Каталог курсів</h2>
+              <p className="section__lead">Усі опубліковані курси. Читати можна без реєстрації.</p>
+            </div>
+            {published && published.length > 0 && (
+              <div className="section__tools">
+                <CourseSearch value={catalogSearch.query} onChange={catalogSearch.setQuery} label="Пошук у каталозі" />
+              </div>
+            )}
           </div>
 
           {loadError ? (
             <div className="card empty-state">
               <p>Не вдалося завантажити курси. Спробуйте оновити сторінку.</p>
             </div>
-          ) : !published ? (
+          ) : !published || !catalogSearch.filtered ? (
             <Skeleton active paragraph={{ rows: 4 }} />
-          ) : published.length === 0 ? (
-            <div className="card empty-state">
-              <p>Поки що немає опублікованих курсів.</p>
-            </div>
           ) : (
-            <div className="cards-grid">
-              {published.map((course) => (
-                <CourseCard key={course.Id} course={course} />
-              ))}
-            </div>
+            <CourseList courses={catalogSearch.filtered} query={catalogSearch.query} empty="Поки що немає опублікованих курсів." />
           )}
         </section>
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dropdown, MenuProps, Modal } from "antd";
-import { DeleteOutlined, EditOutlined, MoreOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, MoreOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Page } from "../../models/Page";
@@ -32,18 +32,33 @@ const notifyError = (error: unknown) => {
   notification("error", "Не вдалося зберегти зміни. Спробуйте ще раз.");
 };
 
-const sectionActions: MenuProps["items"] = [
+type MenuItems = NonNullable<MenuProps["items"]>;
+
+const moveActions = (index: number, count: number): MenuItems => [
+  { key: "up", label: "Перемістити вище", icon: <ArrowUpOutlined />, disabled: index === 0 },
+  { key: "down", label: "Перемістити нижче", icon: <ArrowDownOutlined />, disabled: index === count - 1 },
+];
+
+const sectionActions = (index: number, count: number): MenuItems => [
   { key: "rename", label: "Перейменувати", icon: <EditOutlined /> },
   { key: "addTopic", label: "Додати тему", icon: <PlusOutlined /> },
+  ...(count > 1 ? [{ type: "divider" as const }, ...moveActions(index, count)] : []),
   { type: "divider" },
   { key: "delete", label: "Видалити розділ", icon: <DeleteOutlined />, danger: true },
 ];
 
-const topicActions: MenuProps["items"] = [
+const topicActions = (index: number, count: number): MenuItems => [
   { key: "rename", label: "Перейменувати", icon: <EditOutlined /> },
+  ...(count > 1 ? [{ type: "divider" as const }, ...moveActions(index, count)] : []),
   { type: "divider" },
   { key: "delete", label: "Видалити тему", icon: <DeleteOutlined />, danger: true },
 ];
+
+const swapped = <T,>(items: T[], index: number, offset: number) => {
+  const next = [...items];
+  [next[index], next[index + offset]] = [next[index + offset], next[index]];
+  return next;
+};
 
 const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Props) => {
   const [state, actions] = useTable();
@@ -132,13 +147,32 @@ const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Prop
     });
   };
 
-  const handleSectionAction = (key: string, page: Page) => {
+  const move = async (save: () => Promise<unknown>) => {
+    try {
+      await save();
+      await actions.loadMenu();
+    } catch (error) {
+      notifyError(error);
+    }
+  };
+
+  const moveSection = (index: number, offset: number) =>
+    move(() => api.ReorderPages(courseId, swapped(menu, index, offset).map((page) => page.Id)));
+
+  const moveTopic = (page: Page, index: number, offset: number) =>
+    move(() => api.ReorderSubPages(page.Id, swapped(page.SubPages, index, offset).map((subPage) => subPage.Id)));
+
+  const handleSectionAction = (key: string, page: Page, index: number) => {
+    if (key === "up") moveSection(index, -1);
+    if (key === "down") moveSection(index, 1);
     if (key === "rename") setNameDialog({ kind: "rename", page });
     if (key === "addTopic") setNameDialog({ kind: "addTopic", page });
     if (key === "delete") confirmDelete(page);
   };
 
-  const handleTopicAction = (key: string, page: Page, subPage: SubPage) => {
+  const handleTopicAction = (key: string, page: Page, subPage: SubPage, index: number) => {
+    if (key === "up") moveTopic(page, index, -1);
+    if (key === "down") moveTopic(page, index, 1);
     if (key === "rename") setNameDialog({ kind: "rename", page, subPage });
     if (key === "delete") confirmDelete(page, subPage);
   };
@@ -163,7 +197,7 @@ const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Prop
     <nav className="course-nav" aria-label="Зміст курсу">
       <span className="course-nav__label">Зміст</span>
 
-      {menu.map((page) => {
+      {menu.map((page, pageIndex) => {
         const hasTopics = page.SubPages.length > 0;
         const isExpanded = expanded.has(page.Id);
         const isSectionActive = isActive(page);
@@ -195,7 +229,7 @@ const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Prop
               {isEditing && (
                 <Dropdown
                   trigger={["click"]}
-                  menu={{ items: sectionActions, onClick: ({ key }) => handleSectionAction(key, page) }}
+                  menu={{ items: sectionActions(pageIndex, menu.length), onClick: ({ key }) => handleSectionAction(key, page, pageIndex) }}
                 >
                   <button type="button" className="course-nav__more" aria-label={`Дії з розділом «${page.PageName}»`}>
                     <MoreOutlined />
@@ -206,7 +240,7 @@ const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Prop
 
             {hasTopics && isExpanded && (
               <div className="course-nav__topics">
-                {page.SubPages.map((subPage) => {
+                {page.SubPages.map((subPage, topicIndex) => {
                   const isTopicActive = isActive(page, subPage);
                   return (
                     <div key={subPage.Id} className="course-nav__row">
@@ -221,7 +255,10 @@ const CourseNav = ({ courseId, courseSlug, menu, activeTopic, onNavigate }: Prop
                       {isEditing && (
                         <Dropdown
                           trigger={["click"]}
-                          menu={{ items: topicActions, onClick: ({ key }) => handleTopicAction(key, page, subPage) }}
+                          menu={{
+                            items: topicActions(topicIndex, page.SubPages.length),
+                            onClick: ({ key }) => handleTopicAction(key, page, subPage, topicIndex),
+                          }}
                         >
                           <button type="button" className="course-nav__more" aria-label={`Дії з темою «${subPage.Name}»`}>
                             <MoreOutlined />

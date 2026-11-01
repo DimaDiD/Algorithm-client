@@ -1,9 +1,11 @@
 import { Switch } from "antd";
-import { CodeOutlined, DashboardOutlined, MenuOutlined } from "@ant-design/icons";
+import { CodeOutlined, DashboardOutlined, MenuOutlined, TeamOutlined } from "@ant-design/icons";
 import { Link, useLocation } from "react-router-dom";
 import { useTable } from "../../Store";
 import { coursePath } from "../../course/courseUtils";
 import { useCanEditCourse } from "../../course/useCourse";
+import { useAuth } from "../../auth/AuthContext";
+import { Roles } from "../../auth/roles";
 import AuthPanel from "../auth/AuthPanel";
 
 type Props = {
@@ -19,6 +21,9 @@ const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Pro
   const dashboardPath = courseSlug ? `${coursePath(courseSlug)}/dashboard` : null;
   const showDashboard = !!dashboardPath && canEditCourse && state.course?.Slug === courseSlug;
   const isDashboardActive = !!dashboardPath && decodeURI(location.pathname) === decodeURI(dashboardPath);
+  const { user } = useAuth();
+  const isAdmin = !!user?.roles.includes(Roles.Admin);
+  const isUsersActive = location.pathname === "/admin/users";
 
   return (
     <header className="app-header">
@@ -42,6 +47,17 @@ const AppHeader = ({ onOpenNavigation, courseSlug, showEditToggle = false }: Pro
         </nav>
 
         <div className="app-header__actions">
+          {isAdmin && (
+            <Link
+              to="/admin/users"
+              className={`header-link-button${isUsersActive ? " is-active" : ""}`}
+              aria-current={isUsersActive ? "page" : undefined}
+              aria-label="Користувачі"
+            >
+              <TeamOutlined />
+              <span className="header-button__label">Користувачі</span>
+            </Link>
+          )}
           {showDashboard && dashboardPath && (
             <Link
               to={dashboardPath}
